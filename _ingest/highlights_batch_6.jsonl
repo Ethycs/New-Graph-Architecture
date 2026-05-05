@@ -1,0 +1,12 @@
+{"chunk_id": 60, "primary": "Architecture", "secondary": null, "highlight": "Hyperbolic graph extrusion with node regions, edge corridors, and ML scoring for state classification."}
+{"chunk_id": 61, "primary": "Experiments", "secondary": "Architecture", "highlight": "MNIST classifier test achieving 97.78% accuracy with typed states and confusion-graph singularity detection."}
+{"chunk_id": 62, "primary": "Experiments", "secondary": "Architecture", "highlight": "BabyAI dataset selection for hierarchical task/state-machine testing with compositional instruction grammar."}
+{"chunk_id": 63, "primary": "Experiments", "secondary": "Architecture", "highlight": "Synthetic BabyAI-like grid task showing graph mask boosting accuracy 86.5% to 96.8%, eliminating illegal transitions."}
+{"chunk_id": 64, "primary": "Architecture", "secondary": null, "highlight": "Efficiency gains from typed grammar, graph constraints, hyperbolic hierarchy, group quotient attention, IDF weighting."}
+{"chunk_id": 65, "primary": "Architecture", "secondary": null, "highlight": "JSON-scored evidence fields, deterministic grammar rules, typed measurement as cheaper policy generation alternative."}
+{"chunk_id": 66, "primary": "Architecture", "secondary": null, "highlight": "State/history records, debugging transparency, efficiency summary showing structure-before-model allocation philosophy."}
+{"chunk_id": 67, "primary": "Architecture", "secondary": "Mathematics", "highlight": "Reservoir computing interpretation: frozen LLM plus structured typed-graph-geometric readout layer."}
+{"chunk_id": 68, "primary": "Architecture", "secondary": "Mathematics", "highlight": "Clarifying reservoir computing vs full architecture: hyperbolic geometry as phase space, not reservoir itself."}
+{"chunk_id": 69, "primary": "Experiments", "secondary": "Architecture", "highlight": "Experimental register E0-E9 planning ablation matrix A0-A9 for testing graph mask, typing, uncertainty, singularity, IDF."}
+{"chunk_id": 70, "primary": "Experiments", "secondary": null, "highlight": "Detailed experiment descriptions E4-E7: singularity detector AUROC, IDF weighting, group quotient attention, reservoir readout efficiency."}
+{"chunk_id": 71, "primary": "Experiments", "secondary": "Architecture", "highlight": "Synthetic run showing typed features and graph mask give +10 accuracy, but diminish when classifier sees current state identity."}

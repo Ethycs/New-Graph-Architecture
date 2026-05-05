@@ -1,0 +1,10 @@
+{"chunk_id": 50, "primary": "Mathematics", "secondary": null, "highlight": "Gromov hyperbolicity measures tree-like versus grid-like structure in metric spaces and graphs"}
+{"chunk_id": 51, "primary": "Mathematics", "secondary": null, "highlight": "Whitney stratification decomposes singular spaces into smooth strata with controlled tangent plane compatibility"}
+{"chunk_id": 52, "primary": "Architecture", "secondary": "Mathematics", "highlight": "Whitney-stratified agent state space yields behavioral regimes via action-score functions and constraint signatures"}
+{"chunk_id": 53, "primary": "Mathematics", "secondary": "Architecture", "highlight": "Catastrophe theory studies agent mode switches as control parameters cross discriminant sets"}
+{"chunk_id": 54, "primary": "Mathematics", "secondary": null, "highlight": "Group actions on graph geometric realizations produce orbit-type strata with stratifier-dependent singularities"}
+{"chunk_id": 55, "primary": "Mathematics", "secondary": null, "highlight": "Global group actions create quotient singularities at points with nontrivial stabilizers"}
+{"chunk_id": 56, "primary": "Architecture", "secondary": null, "highlight": "Partition map assigns agent states to strata via task cell, tied actions, stabilizer type, and rank signatures"}
+{"chunk_id": 57, "primary": "Mathematics", "secondary": "Architecture", "highlight": "Statistical partition function weights strata by energy, measuring probability mass in behavioral regimes"}
+{"chunk_id": 58, "primary": "Architecture", "secondary": "Mathematics", "highlight": "Softmax and energy-based ML models induce decision stratification; ML learns energy parameters from agent traces"}
+{"chunk_id": 59, "primary": "Architecture", "secondary": null, "highlight": "Formal grammar via denotation map bridges procedure description to stratified geometric agent objects"}

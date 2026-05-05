@@ -1,0 +1,375 @@
+{
+  "arch": [
+    {
+      "file": "_index.md",
+      "title": "Architecture Atoms",
+      "what": ""
+    },
+    {
+      "file": "behavioral-stratum-tagger.md",
+      "title": "Behavioral Stratum Tagger",
+      "what": "A module that assigns each state $x$ a **behavioral stratum tag** drawn from the discrete catalog defined in [Singularity Types Catalog](./singularity-types.md): one of `nominal`, `low-margin`, `decis"
+    },
+    {
+      "file": "catastrophe-labels.md",
+      "title": "Catastrophe Labels",
+      "what": "Annotate graph edges with catastrophe-theoretic tags—fold, cusp, swallowtail, butterfly—that mark where bifurcations and phase transitions are expected. These labels come from catastrophe-theory analy"
+    },
+    {
+      "file": "confusion-graph.md",
+      "title": "Confusion Graph",
+      "what": "A confusion graph is a directed graph of classification errors and near-misses: vertices are task states (true and predicted labels), and weighted edges record the frequency of confusions $(q_{\\text{t"
+    },
+    {
+      "file": "dynkin-ade-classification.md",
+      "title": "Dynkin / ADE Classification",
+      "what": "Dynkin/ADE classification recognizes when a task graph $G$ belongs to the ADE family (types $A_n, D_n, E_6, E_7, E_8$). ADE graphs are rare, highly structured quivers with Cartan/Killing forms that bi"
+    },
+    {
+      "file": "energy-function-E.md",
+      "title": "Energy Function E(x)",
+      "what": "The energy function $E(x) = \\alpha \\cdot \\text{cost}(x) + \\beta \\cdot \\text{uncertainty}(x) + \\gamma \\cdot \\text{contradiction}(x) + \\eta \\cdot \\text{loop}(x) - \\kappa \\cdot \\text{progress}(x)$ assign"
+    },
+    {
+      "file": "energy-weighted-loss.md",
+      "title": "Energy-Weighted Loss",
+      "what": "Energy-weighted loss reweights the training objective to prioritize high-energy (singular, difficult, contradictory) states and de-prioritize low-energy (easy, generic) states. If the target state is "
+    },
+    {
+      "file": "failure-margin-auroc.md",
+      "title": "Failure-vs-Margin AUROC",
+      "what": "Computed validation metric: Area Under the ROC Curve of the [Singularity Detector σ(x)](./singularity-detector.md) score $\\sigma(x)$ against ground-truth error labels $y \\in \\{0, 1\\}$. High AUROC (> 0"
+    },
+    {
+      "file": "frozen-encoder-backbone.md",
+      "title": "Frozen Encoder Backbone",
+      "what": "The encoder backbone $h_\\theta(x)$ (a pre-trained LLM or universal transformer) is held constant during retrieval training. Only the lightweight readout layer is updated. This follows the reservoir-co"
+    },
+    {
+      "file": "grammar-compiler.md",
+      "title": "Grammar Compiler",
+      "what": "The grammar compiler is a domain-specific language (DSL) and execution engine that translates a declarative specification of state types, transitions, and legality rules into a typed graph object, pro"
+    },
+    {
+      "file": "graph-extrusion.md",
+      "title": "Graph Extrusion",
+      "what": "Convert the discrete graph into a continuous stratified geometric object: each node becomes a cell (open ball, simplex, or manifold patch) in $\\mathbb{H}^d$, and each edge becomes a geodesic tube. Ext"
+    },
+    {
+      "file": "graph-fsm.md",
+      "title": "Graph FSM",
+      "what": "A graph FSM is the tuple $(V, E, w_v, g_v, m_v)$ that defines a finite-state automaton where vertices are task states, edges are legal transitions, and three label families encode weights (self-inters"
+    },
+    {
+      "file": "graph-legality-mask.md",
+      "title": "Graph Legality Mask",
+      "what": "A legality mask is a learned or rule-defined layer that zeros out logits (log-probabilities) over illegal next-state transitions before softmax. It enforces that the classifier cannot propose a move t"
+    },
+    {
+      "file": "graph-prototype-vectors.md",
+      "title": "Graph Prototype Vectors",
+      "what": "Assign each node in the hyperbolic embedding a learned prototype vector $\\mathbf{p}_v \\in \\mathbb{H}^d$ that anchors the typed semantic type of that node. The prototype summarizes the grammatical, rol"
+    },
+    {
+      "file": "graph-realization-functor.md",
+      "title": "Graph Realization Functor",
+      "what": "The realization functor $R: \\text{Graph}_{\\text{enriched}} \\to \\text{Sing}$ maps a typed/weighted graph to an algebraic-geometric object: a singularity, hypersurface, quiver variety, or plumbed 4-mani"
+    },
+    {
+      "file": "gromov-hyperbolicity-diagnostic.md",
+      "title": "Gromov δ Diagnostic",
+      "what": "Compute the Gromov hyperbolicity constant $\\delta$ of the realized graph embedding: the supremum over all 4-tuples of points of the maximum distance excess when comparing path lengths and tree-like di"
+    },
+    {
+      "file": "group-action-on-graph.md",
+      "title": "Group Action on Graph",
+      "what": "A group $H$ acts on the vertices and edges of a retrieval graph $\\Gamma$ by permutation, identifying structurally equivalent states. For instance, if two retrieval tools are functionally identical, $H"
+    },
+    {
+      "file": "hyperbolic-distance-loss.md",
+      "title": "Hyperbolic Distance Loss",
+      "what": "Training objective that pulls observations toward their typed state prototype in $\\mathbb{H}^d$ and pushes non-matching observations away, measured in hyperbolic distance. The loss balances attraction"
+    },
+    {
+      "file": "hyperbolic-embedding.md",
+      "title": "Hyperbolic Embedding",
+      "what": "Embed the discrete task graph into $\\mathbb{H}^d$ (Poincaré or Lorentz model) such that tree-likeness and ancestor-descendant hierarchy are preserved as hyperbolic distance. The negative curvature of "
+    },
+    {
+      "file": "margin-uncertainty.md",
+      "title": "Margin Uncertainty",
+      "what": "Margin uncertainty is the score gap between the top-1 and top-2 predicted states: $m(x) = s_{q_1}(x) - s_{q_2}(x)$ where $q_1, q_2$ are the highest and second-highest-scoring next states. This is the "
+    },
+    {
+      "file": "orbit-pair-attention.md",
+      "title": "Orbit-Pair Attention",
+      "what": "Attention is computed at the granularity of orbits, not individual states. Each query is an orbit (or representative thereof), each key/value is an orbit, and the attention matrix is $(|V/H|, |V/H|)$ "
+    },
+    {
+      "file": "orbit-quotient-space.md",
+      "title": "Orbit Quotient Space |Γ|/H",
+      "what": "Given a group $H$ acting on a retrieval graph $\\Gamma$, the orbit quotient $|\\Gamma|/H$ is a collapsed graph where each vertex is an orbit (equivalence class under $H$), and edges connect orbits if th"
+    },
+    {
+      "file": "singularity-detector.md",
+      "title": "Singularity Detector σ(x)",
+      "what": "Combined anomaly score $\\sigma(x) \\in [0, 1]$ that aggregates five independent signals—low margin, contradiction, loop pressure, illegal-pressure, stabilizer-jump—into a single confidence that observa"
+    },
+    {
+      "file": "singularity-extraction-functor.md",
+      "title": "Singularity Extraction Functor",
+      "what": "The extraction functor $\\Gamma: \\text{Sing} \\to \\text{Graph}_{\\text{enriched}}$ maps a singularity (or a discriminant, resolution, Milnor fiber) back to a typed graph. It extracts the combinatorial sk"
+    },
+    {
+      "file": "singularity-types.md",
+      "title": "Singularity Types Catalog",
+      "what": "Enumerated taxonomy of singularity kinds realized in the typed task graph, each with a canonical feature signature. Types include: low-margin (confused states), decision-tie (equidistant prototypes), "
+    },
+    {
+      "file": "stabilizer-signature.md",
+      "title": "Stabilizer Signature",
+      "what": "For each state (or orbit) in a retrieval graph, the stabilizer subgroup $\\text{Stab}_H(v)$ is the set of group elements $h \\in H$ that fix $v$. A state with trivial stabilizer ($\\{e\\}$) is generic; a "
+    },
+    {
+      "file": "stratified-partition-function.md",
+      "title": "Stratified Partition Function",
+      "what": "The merged Phase 5 module that does two things in one pass over the extruded state manifold $X$: 1. **Whitney stratification.** Carves $X = \\bigsqcup_\\lambda S_\\lambda$ into smooth strata satisfying W"
+    },
+    {
+      "file": "typed-field-pipeline.md",
+      "title": "Typed Field Pipeline",
+      "what": "The Typed Field Pipeline is the front half of the architecture: observation $x$ (agent context, query, evidence) flows through grammar objects and type classifiers to produce a Typed Score Record $Y$."
+    },
+    {
+      "file": "typed-readout-layer.md",
+      "title": "Typed Readout Layer",
+      "what": "The readout layer $h_t: \\mathbb{R}^d \\to Y_t$ is a small, trainable neural network that maps frozen encoder embeddings to a typed output space. For each state type $t$ (e.g., question, retrieval, deci"
+    },
+    {
+      "file": "typed-score-record.md",
+      "title": "Typed Score Record",
+      "what": "A Typed Score Record $(Y)$ is the per-step output of the observation encoder and classifier. It is a structured tuple $(q_t, \\lambda_t, p_t, z_t, \\mathbf{e}_t)$ where $q_t$ is the predicted next state"
+    },
+    {
+      "file": "weighted-plumbing-graph.md",
+      "title": "Weighted Plumbing Graph",
+      "what": "A weighted plumbing graph is a variant FSM enrichment where each vertex and edge carries an intersection-form weight and genus annotation. The weights must satisfy negative-definiteness constraints to"
+    }
+  ],
+  "exp": [
+    {
+      "file": "_index.md",
+      "title": "Experiment Atoms",
+      "what": ""
+    },
+    {
+      "file": "ablation-matrix.md",
+      "title": "Ablation Matrix A0–A9",
+      "what": "Run the full architecture on E2 (BabyAI) or E1 (synthetic) with 10 variants: A0 (full system), then A1–A9 each disabling one component (graph mask, typed grammar, uncertainty distribution, singularity"
+    },
+    {
+      "file": "dataset-alfworld-loader.md",
+      "title": "Dataset Adapter — ALFWorld Loader",
+      "what": "Loader bridging TextWorld abstract policies and embodied ALFRED-style household-task environments. Produces tuples: (abstract_state_text, embodied_observation, typed_fields, legal_actions, procedural_"
+    },
+    {
+      "file": "dataset-minigrid-wrapper.md",
+      "title": "Dataset Adapter — Real MiniGrid/BabyAI Wrapper",
+      "what": "Wrapper around MiniGrid/BabyAI environment providing: observation-to-typed-feature converter (image → {position, grid-occupancy, goal-vector}), instruction-to-typed-grammar converter (natural language"
+    },
+    {
+      "file": "dataset-mnist-typed.md",
+      "title": "Dataset Adapter — MNIST Typed",
+      "what": "Adapter producing typed labels and confusion-graph adjacency from sklearn `load_digits()` (8×8 handwritten digits). Produces triples: (image, digit_class, margin). Confusion graph: edge between classe"
+    },
+    {
+      "file": "dataset-scienceworld-loader.md",
+      "title": "Dataset Adapter — ScienceWorld Loader",
+      "what": "Loader for ScienceWorld interactive text environment (elementary-school science reasoning tasks). Produces tuples: (task_text, observation_text, typed_fields, legal_actions, reasoning_context). Task s"
+    },
+    {
+      "file": "dataset-synthetic-babyai-grid.md",
+      "title": "Dataset Adapter — Synthetic BabyAI Grid",
+      "what": "In-process generator for synthetic grid-task traces: 7 typed task states × 5 task types, each producing (features, current_state, next_state, legal_next_states) tuples. Task states are {Parse, Navigat"
+    },
+    {
+      "file": "dataset-trace-replay.md",
+      "title": "Dataset Adapter — Research-Agent Trace Replay",
+      "what": "Loader for offline traces from research agents (e.g., Claude Code, ReAct-style agents, or other LLM-based planners). Replays episodes from saved JSON traces: each trace contains observations, actions,"
+    },
+    {
+      "file": "e0-mnist.md",
+      "title": "E0 — MNIST Typed-State Sanity Run",
+      "what": "A minimal end-to-end experiment validating the classifier-to-graph pipeline on sklearn digits. Given a trained classifier over {0,1,2,...,9}, extract typed labels, compute margin distributions, flag l"
+    },
+    {
+      "file": "e1-synthetic-babyai.md",
+      "title": "E1 — Synthetic BabyAI Grid Run",
+      "what": "A controlled in-process grid-world benchmark with 7 typed task states and 5 task types, testing whether graph-legality masking of classifier predictions reduces illegal transitions and improves accura"
+    },
+    {
+      "file": "e2-real-babyai.md",
+      "title": "E2 — Real BabyAI / MiniGrid",
+      "what": "Install BabyAI/MiniGrid, adapt observation-to-typed-feature converters, run 5-model comparison on selected levels: flat policy, concept-bottleneck, graph FSM, graph+singularity, hyperbolic graph. Prim"
+    },
+    {
+      "file": "e3-hyperbolic-vs-euclidean.md",
+      "title": "E3 — Hyperbolic vs Euclidean Embedding Sweep",
+      "what": "For a curated BabyAI level or synthetic grid-task benchmark, embed task nodes into Euclidean vs hyperbolic spaces (via Poincaré / Lorentz model) with varying dimensions {2, 4, 8, 16, 32}. Classify sta"
+    },
+    {
+      "file": "e4-singularity-auroc.md",
+      "title": "E4 — Singularity Detector Validation",
+      "what": "Test the singularity detector σ(x) against actual failures: illegal transitions, low-margin predictions, contradictions, and loop-risk indicators. Measure AUROC of σ(x) vs binary failure label across "
+    },
+    {
+      "file": "e5-idf-ablation.md",
+      "title": "E5 — IDF Rare-Stratum Weighting Ablation",
+      "what": "Train the typed-graph classifier with and without IDF (inverse document frequency) weighting on rare task states, rare transitions, rare singularities, and rare failure modes. Measure: overall accurac"
+    },
+    {
+      "file": "e6-group-quotient-attention.md",
+      "title": "E6 — Group-Quotient Attention",
+      "what": "Implement orbit-based attention quotienting: group equivalent objects (same type, role, IDF stratum) into orbits V/H, then compute attention over orbit pairs at O(|V/H|²) cost. For high-IDF or singula"
+    },
+    {
+      "file": "e7-reservoir-vs-end2end.md",
+      "title": "E7 — Reservoir Readout vs End-to-End",
+      "what": "Compare two training regimes on E2 (BabyAI) or E1 (synthetic): end-to-end training of the full classifier/graph/distributor pipeline vs freezing the encoder and training only a linear readout atop fix"
+    },
+    {
+      "file": "e8-transfer-experiment.md",
+      "title": "E8 — Transfer Experiment",
+      "what": "Train the 5 model variants (flat, typed, graph, graph+singularity, hyperbolic) on a source task family (e.g., BabyAI Goto tasks), then evaluate zero-shot on a related but distinct target family (e.g.,"
+    },
+    {
+      "file": "e9-full-trace-benchmark.md",
+      "title": "E9 — Full Agent Trace Benchmark",
+      "what": "Run the complete architecture on multi-step agent traces across 3 domains (BabyAI, ALFWorld, ScienceWorld). Full pipeline: observation → encoder h_t → typed classifier Y_t → hyperbolic embedding z_H →"
+    },
+    {
+      "file": "evidence-tracker.md",
+      "title": "Evidence-Level Tracker",
+      "what": "Meta-experiment logger tracking evidence level per major claim across all runs. Claims: \"graph masks reduce illegal actions,\" \"singularity detector predicts failures,\" \"hyperbolic geometry compresses "
+    },
+    {
+      "file": "metric-collectors.md",
+      "title": "Metric Collectors",
+      "what": "Standardized collectors for accuracy, illegal-action rate, AUROC (failure prediction), ECE (calibration), transfer gap, attention FLOPs, trainable-parameter count, and loop rate. Each collector consum"
+    },
+    {
+      "file": "minimal-next-experiment.md",
+      "title": "Minimal Next Experiment",
+      "what": "The single most actionable next experiment: BabyAI/MiniGrid 5-model comparison. Run on a curated subset of 5 BabyAI levels (Goto, Pickup, OpenDoor, PutNear, Toggle mixed with and without key-opening s"
+    }
+  ],
+  "drivers": [
+    {
+      "file": "_index.md",
+      "title": "Drivers Atoms",
+      "what": ""
+    },
+    {
+      "file": "ablation-flags.md",
+      "title": "Ablation Flag Set",
+      "what": "A set of boolean feature flags controlling which architectural components are enabled or disabled. Each flag corresponds to a major architectural piece (graph masking, typed scores, singularity detect"
+    },
+    {
+      "file": "cli-runner.md",
+      "title": "CLI Runner",
+      "what": "A unified command-line entry point `python run.py` that orchestrates the entire pipeline: dataset loading, model construction, training, evaluation, and metrics collection. It accepts experiment ID (E"
+    },
+    {
+      "file": "config.md",
+      "title": "Config (YAML)",
+      "what": "A single YAML configuration file serves as the source of truth for both architecture and experiment harnesses. It defines the grammar specification path, graph FSM path, embedding dimensions, temperat"
+    },
+    {
+      "file": "graph-fsm-spec.md",
+      "title": "Graph FSM Spec",
+      "what": "The Graph FSM Spec is a YAML/JSON file format describing the task state machine: vertices $V$ (task states), edges $E$ (legal transitions), vertex weights $w_v$ (importance/specificity), geometry $g_v"
+    },
+    {
+      "file": "metrics-jsonl.md",
+      "title": "metrics.jsonl",
+      "what": "An append-only JSON Lines stream of scalar metrics collected during training and evaluation. Each record carries the experiment identifier, ablation variant, data split, metric name, scalar value, tra"
+    },
+    {
+      "file": "results-jsonl.md",
+      "title": "results.jsonl",
+      "what": "An append-only JSON Lines stream of per-sample predictions and ground-truth labels. Each record contains the sample identifier, ground truth, prediction, margin, singularity flag, transition-legality "
+    },
+    {
+      "file": "typed-score-record.md",
+      "title": "Typed Score Record Contract",
+      "what": "The typed score record is the JSON-line wire format for classifier outputs $Y$. Each record binds a predicted type label with confidence, a distance array (for hyperbolic or other geometric alignment)"
+    }
+  ],
+  "open": [
+    {
+      "file": "_index.md",
+      "title": "Open Questions",
+      "what": ""
+    },
+    {
+      "file": "q01-hyperbolic-dim.md",
+      "title": "What hyperbolic dimension is needed for the task graph?",
+      "what": "What intrinsic dimension $d$ of hyperbolic space $\\mathbb{H}^d$ is sufficient to embed a research-agent task graph without losing hierarchy information? Does $d = 4$ to $8$ suffice, or does required d"
+    },
+    {
+      "file": "q02-energy-function-spec.md",
+      "title": "How is the energy function E(x) specified or learned?",
+      "what": "Is the energy function $E(x)$ in the partition-function formulation prescribed from catastrophe theory (e.g., a fold, cusp, or swallowtail potential), learned end-to-end via gradient descent, or infer"
+    },
+    {
+      "file": "q03-idf-runtime-schedule.md",
+      "title": "How are IDF weights updated at runtime?",
+      "what": "For a given task $\\lambda$ or transition, the IDF weight is $\\mathrm{idf}(\\lambda) = \\log\\frac{N + \\alpha}{n_\\lambda + \\alpha}$, where $n_\\lambda$ is the frequency of $\\lambda$ in training data. At in"
+    },
+    {
+      "file": "q04-babyai-dataset-choice.md",
+      "title": "Which BabyAI level set should be the canonical E2 benchmark?",
+      "what": "BabyAI/MiniGrid has an official curriculum of difficulty levels (e.g., GoToLocal, GoToObj, PutNextLocal, ...) and custom synthetic environments. Should we lock a specific canonical subset as the canon"
+    },
+    {
+      "file": "q05-transfer-success-criterion.md",
+      "title": "What defines \"successful transfer\" in E8?",
+      "what": "[E8 — Transfer Experiment](../exp/e8-transfer-experiment.md) compares transfer performance of flat policy, concept bottleneck, graph FSM, and hyperbolic graph across task families. How do we measure s"
+    },
+    {
+      "file": "q06-group-action-discovery.md",
+      "title": "Is the group action H specified or discovered?",
+      "what": "The quotient-attention mechanism ([Orbit-Pair Attention](../arch/orbit-pair-attention.md)) compresses an object set $V$ into orbits under a group action $\\Gamma$, reducing all-to-all attention from $O"
+    },
+    {
+      "file": "q07-singularity-loss-weighting.md",
+      "title": "Does σ(x) get weighted into loss, detection-only, or scheduled?",
+      "what": "The singularity score $\\sigma(x)$ combines margin, contradiction, illegal pressure, and loop risk. Should it be: - **(A)** multiplied into the training loss: $\\mathcal{L} = \\sigma(x) \\cdot \\ell(f(x), "
+    },
+    {
+      "file": "q08-quotient-reexpansion-threshold.md",
+      "title": "When does an orbit re-expand from quotient form?",
+      "what": "In [Orbit Quotient Space](../arch/orbit-quotient-space.md), object orbits are compressed into single representatives during attention, then optionally re-expanded for downstream processing. When shoul"
+    },
+    {
+      "file": "q09-reservoir-freeze-schedule.md",
+      "title": "What is the encoder freeze schedule in reservoir readout?",
+      "what": "In [E7 — Reservoir Readout vs End-to-End](../exp/e7-reservoir-vs-end2end.md), the encoder/LLM is frozen and only the readout head is trained. Should the encoder be frozen from epoch 0, frozen after a "
+    },
+    {
+      "file": "q10-failure-prediction-baseline.md",
+      "title": "Does singularity score σ(x) beat margin alone for failure prediction?",
+      "what": "The composite singularity score $\\sigma(x) = w_1 \\cdot m^{-1} + w_2 \\cdot \\mathrm{contradiction} + w_3 \\cdot \\mathrm{loop\\_pressure} + w_4 \\cdot \\mathrm{illegal\\_pressure}$ combines multiple signals. "
+    },
+    {
+      "file": "q11-hyperbolic-vs-euclidean-tradeoff.md",
+      "title": "Does hyperbolic dimension reduction actually materialize at scale?",
+      "what": "Hyperbolic geometry promises to encode hierarchy in fewer dimensions than Euclidean space. But hyperbolic distance computation, gyrovector operations, and Möbius transformations incur per-operation ov"
+    },
+    {
+      "file": "q12-loop-risk-detection.md",
+      "title": "How is \"loop risk\" scored in σ(x)?",
+      "what": "The singularity score $\\sigma(x)$ includes a loop-risk term to detect when an agent is about to enter or is trapped in a nonproductive cycle (e.g., endless retrieval, repeated tool calls). Is loop ris"
+    }
+  ]
+}

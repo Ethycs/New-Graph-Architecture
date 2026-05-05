@@ -1,0 +1,59 @@
+{
+  "piece": "Experiments",
+  "sections": [
+    {
+      "section_name": "Experiment Register and Ablation Plan",
+      "rationale": "Introduces the full experimental register E0–E9 and ablation matrix A0–A9, laying out the design and scope of all planned tests.",
+      "owned_chunks": [
+        {
+          "chunk_id": 69,
+          "highlight": "Experimental register E0-E9 planning ablation matrix A0-A9 for testing graph mask, typing, uncertainty, singularity, IDF."
+        }
+      ]
+    },
+    {
+      "section_name": "Ablation Descriptions E4–E7",
+      "rationale": "Provides detailed descriptions of ablations E4–E7 covering singularity-detector AUROC, IDF weighting, group-quotient attention, and reservoir-readout efficiency.",
+      "owned_chunks": [
+        {
+          "chunk_id": 70,
+          "highlight": "Detailed experiment descriptions E4-E7: singularity detector AUROC, IDF weighting, group quotient attention, reservoir readout efficiency."
+        }
+      ]
+    },
+    {
+      "section_name": "MNIST Typed-State Classifier Run",
+      "rationale": "Reports the concrete MNIST experiment achieving 97.78% accuracy with typed states and confusion-graph singularity detection as a proof-of-concept.",
+      "owned_chunks": [
+        {
+          "chunk_id": 61,
+          "highlight": "MNIST classifier test achieving 97.78% accuracy with typed states and confusion-graph singularity detection."
+        }
+      ]
+    },
+    {
+      "section_name": "BabyAI Task Selection and Setup",
+      "rationale": "Describes the selection of the BabyAI dataset and its compositional instruction grammar as the testbed for hierarchical task and state-machine evaluation.",
+      "owned_chunks": [
+        {
+          "chunk_id": 62,
+          "highlight": "BabyAI dataset selection for hierarchical task/state-machine testing with compositional instruction grammar."
+        }
+      ]
+    },
+    {
+      "section_name": "Synthetic BabyAI Run and Results",
+      "rationale": "Presents the synthetic BabyAI-like grid experiment showing graph-mask boosting accuracy from 86.5% to 96.8% and the typed-feature gain of +10 accuracy, including the boundary condition where current-state identity reduces the benefit.",
+      "owned_chunks": [
+        {
+          "chunk_id": 63,
+          "highlight": "Synthetic BabyAI-like grid task showing graph mask boosting accuracy 86.5% to 96.8%, eliminating illegal transitions."
+        },
+        {
+          "chunk_id": 71,
+          "highlight": "Synthetic run showing typed features and graph mask give +10 accuracy, but diminish when classifier sees current state identity."
+        }
+      ]
+    }
+  ]
+}

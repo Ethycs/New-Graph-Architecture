@@ -1,0 +1,121 @@
+{
+  "piece": "Mathematics",
+  "sections": [
+    {
+      "section_name": "Planar Duality and Simplicial Generalization",
+      "preface": "Planar graph duality, anchored by Euler's formula and Whitney's matroid criterion, generalizes to simplicial complexes via dimension-reversal and boundary/coboundary operators.",
+      "subsections": [
+        {
+          "subsection_name": "Planar Duality and Whitney's Criterion",
+          "chunk_ids": [0, 1]
+        },
+        {
+          "subsection_name": "Simplicial Generalization and Dimension Reversal",
+          "chunk_ids": [2, 3]
+        }
+      ]
+    },
+    {
+      "section_name": "Monodromy Graphs and Coset Representations",
+      "preface": "Dart permutations and double-coset constructions yield a universal algebraic representation of graphs and maps, extending Sabidussi's coset-graph theory.",
+      "subsections": [
+        {
+          "subsection_name": "Dart Permutations and Coset Framework",
+          "chunk_ids": [5, 4]
+        },
+        {
+          "subsection_name": "Extending Sabidussi's Coset-Graph Theory",
+          "chunk_ids": [6]
+        }
+      ]
+    },
+    {
+      "section_name": "Singularities, Vanishing Cycles, and ADE Diagrams",
+      "preface": "Catastrophe theory and Picard-Lefschetz vanishing cycles link singularities to monodromy, producing ADE Dynkin graphs, McKay correspondences, and quivers.",
+      "subsections": [
+        {
+          "subsection_name": "Catastrophe Theory and Vanishing Cycles",
+          "chunk_ids": [7, 8]
+        },
+        {
+          "subsection_name": "ADE Dynkin Graphs and McKay Correspondence",
+          "chunk_ids": [9, 10]
+        }
+      ]
+    },
+    {
+      "section_name": "Catastrophe Theory and Discriminant Strata",
+      "preface": null,
+      "subsections": [
+        {
+          "subsection_name": "Overview",
+          "chunk_ids": [53]
+        }
+      ]
+    },
+    {
+      "section_name": "Gromov Hyperbolicity and Tree-Like Metric Spaces",
+      "preface": "Gromov's delta-hyperbolicity formalizes tree-likeness in metric spaces and graphs through thin geodesic triangles and the four-point condition.",
+      "subsections": [
+        {
+          "subsection_name": "Thin Triangles and Four-Point Condition",
+          "chunk_ids": [19, 21]
+        },
+        {
+          "subsection_name": "Tree-Like versus Grid-Like Structure",
+          "chunk_ids": [50]
+        }
+      ]
+    },
+    {
+      "section_name": "Whitney Stratification and Group-Action Orbit Types",
+      "preface": "Whitney stratification decomposes singular spaces into compatible smooth strata, and group actions on geometric realizations refine this with orbit-type strata and quotient singularities.",
+      "subsections": [
+        {
+          "subsection_name": "Embedding and Whitney Stratification",
+          "chunk_ids": [16, 51]
+        },
+        {
+          "subsection_name": "Orbit-Type Stratifications from Group Actions",
+          "chunk_ids": [24, 54]
+        },
+        {
+          "subsection_name": "Quotient Singularities at Nontrivial Stabilizers",
+          "chunk_ids": [25, 55]
+        }
+      ]
+    },
+    {
+      "section_name": "Information-Theoretic Transfer and Rate-Distortion",
+      "preface": "Mutual information, the data processing inequality, rate-distortion theory, and domain-adaptation bounds certify that geometric abstractions preserve task-relevant information across domains.",
+      "subsections": [
+        {
+          "subsection_name": "Mutual Information and Rate-Distortion",
+          "chunk_ids": [34, 35]
+        },
+        {
+          "subsection_name": "Invariant Abstractions and Domain Transfer",
+          "chunk_ids": [36, 37]
+        }
+      ]
+    },
+    {
+      "section_name": "Bit Budgets, IDF Weighting, and Scaling Laws",
+      "preface": "Singularity-IDF weighting, Pythagorean feature decompositions, partition functions, and bit-budget scaling laws together quantify the complexity of stratified agent representations.",
+      "subsections": [
+        {
+          "subsection_name": "Singularity-IDF and Energy Functions",
+          "chunk_ids": [40, 41]
+        },
+        {
+          "subsection_name": "Pythagorean Decompositions and Partition Functions",
+          "chunk_ids": [42, 57]
+        },
+        {
+          "subsection_name": "Bit-Budget Formulas and Scaling Laws",
+          "chunk_ids": [46, 47]
+        }
+      ]
+    }
+  ]
+}

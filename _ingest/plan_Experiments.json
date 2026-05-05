@@ -1,0 +1,59 @@
+{
+  "piece": "Experiments",
+  "sections": [
+    {
+      "section_name": "Experiment Register and Ablation Plan",
+      "preface": "Outlines the full experimental program E0-E9 and the parallel ablation matrix A0-A9 used to test graph mask, typing, uncertainty, singularity, and IDF mechanisms.",
+      "subsections": [
+        {
+          "subsection_name": "Register E0-E9 and Ablation Matrix",
+          "chunk_ids": [69]
+        }
+      ]
+    },
+    {
+      "section_name": "Ablation Descriptions E4-E7",
+      "preface": "Details ablations E4 through E7, covering singularity-detector AUROC, IDF weighting, group-quotient attention, and reservoir-readout efficiency.",
+      "subsections": [
+        {
+          "subsection_name": "Detector, IDF, Quotient, Reservoir Ablations",
+          "chunk_ids": [70]
+        }
+      ]
+    },
+    {
+      "section_name": "MNIST Typed-State Classifier Run",
+      "preface": "Reports a proof-of-concept MNIST experiment combining typed states with confusion-graph singularity detection.",
+      "subsections": [
+        {
+          "subsection_name": "97.78% Accuracy Proof-of-Concept",
+          "chunk_ids": [61]
+        }
+      ]
+    },
+    {
+      "section_name": "BabyAI Task Selection and Setup",
+      "preface": "Motivates the choice of BabyAI as the testbed for hierarchical task and state-machine evaluation due to its compositional instruction grammar.",
+      "subsections": [
+        {
+          "subsection_name": "Dataset Choice and Compositional Grammar",
+          "chunk_ids": [62]
+        }
+      ]
+    },
+    {
+      "section_name": "Synthetic BabyAI Run and Results",
+      "preface": "Presents synthetic BabyAI-like grid results, where the graph mask and typed features yield substantial accuracy gains except when the classifier already observes current-state identity.",
+      "subsections": [
+        {
+          "subsection_name": "Graph Mask Accuracy Gains",
+          "chunk_ids": [63]
+        },
+        {
+          "subsection_name": "Typed Features and Boundary Condition",
+          "chunk_ids": [71]
+        }
+      ]
+    }
+  ]
+}

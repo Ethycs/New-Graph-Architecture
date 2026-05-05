@@ -1,0 +1,45 @@
+{
+  "piece": "Architecture",
+  "sections": [
+    {
+      "section_name": "Graph-Singularity Zig-Zag Pipeline",
+      "chunk_ids": [11, 12, 13, 14, 15],
+      "rationale": "Establishes the foundational pipeline from typed task graphs through geometric realization to singularity extraction and back, including three concrete routes (graph hypersurface, quiver variety, discrete Morse) and catastrophe-theoretic enrichment of agent task graphs."
+    },
+    {
+      "section_name": "Hyperbolic Task Space and Geometry",
+      "chunk_ids": [17, 18, 20, 60],
+      "rationale": "Motivates and defines hyperbolic geometry as the natural host for agent task graphs, covering negative-curvature hierarchy encoding, group-action quotients for monodromy loops, boundary memory, and the concrete hyperbolic graph extrusion with node regions and edge corridors."
+    },
+    {
+      "section_name": "Whitney Stratification of Agent State Space",
+      "chunk_ids": [22, 23, 52, 53, 56],
+      "rationale": "Defines how the agent state and control space is decomposed into behavioral regimes via Whitney stratification, with agent state components (memory, evidence, confidence, budget) determining strata, catastrophe-theoretic mode switches at discriminant boundaries, and the partition map assigning states to strata."
+    },
+    {
+      "section_name": "Group Symmetry, Quotient Compression, and Singularity Strata",
+      "chunk_ids": [26, 27],
+      "rationale": "Describes how group-symmetry quotients collapse equivalent agent tasks into singular strata and how the partition map classifies agent states by dominant action, stabilizer type, constraint signs, and rank signatures."
+    },
+    {
+      "section_name": "Energy Function and Partition Function over Strata",
+      "chunk_ids": [28, 29, 30, 57, 58],
+      "rationale": "Defines the statistical energy function and partition function that weight behavioral strata by cost, uncertainty, and conflict, and shows how softmax and energy-based ML models learn the stratified geometry from agent traces."
+    },
+    {
+      "section_name": "Grammar, Compiler, and Typed Field Pipeline",
+      "chunk_ids": [31, 32, 33, 42, 43, 59],
+      "rationale": "Describes the formal grammar-to-stratified-geometry bridge: a procedure grammar is compiled through ML scoring into typed quantitative fields and evaluated deterministically, yielding a four-layer system (grammar, ML scorer, state machine, distribution) that maps agent procedures to geometric objects."
+    },
+    {
+      "section_name": "Scaling, Full Component Assembly, and Efficiency",
+      "chunk_ids": [38, 39, 44, 45, 64, 65, 66],
+      "rationale": "Characterizes the scaling behavior of the network (objects, relations, depth), assembles the complete thirteen-component hyperbolic agent object A_hyp, and summarizes efficiency gains from typed grammar, graph constraints, hyperbolic hierarchy, group quotient attention, IDF weighting, and structure-before-model allocation."
+    },
+    {
+      "section_name": "Reservoir Computing Readout and Expert Validation",
+      "chunk_ids": [48, 49, 67, 68],
+      "rationale": "Frames the full architecture as a reservoir-computing readout (frozen LLM plus structured typed-graph-geometric layer), clarifies the role of hyperbolic geometry as phase space, and reports the ML expert panel consensus on the system's promise and required validation steps."
+    }
+  ]
+}

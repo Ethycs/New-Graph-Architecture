@@ -1,0 +1,10 @@
+{"chunk_id": 30, "primary": "Architecture", "secondary": null, "highlight": "Partition function as energy-based model over stratified agent states and behavioral regimes"}
+{"chunk_id": 31, "primary": "Architecture", "secondary": "Mathematics", "highlight": "Guaranteed bridge from formal grammar to stratified geometry via operational semantics and compiler"}
+{"chunk_id": 32, "primary": "Architecture", "secondary": null, "highlight": "Procedure grammar transformed into typed quantitative fields via model scoring and deterministic evaluation"}
+{"chunk_id": 33, "primary": "Architecture", "secondary": null, "highlight": "Three-layer system: grammar defines structure, model scores fields, deterministic evaluator computes strata"}
+{"chunk_id": 34, "primary": "Mathematics", "secondary": "Architecture", "highlight": "Data processing inequality and mutual information as bridge metrics for model information into structure"}
+{"chunk_id": 35, "primary": "Mathematics", "secondary": null, "highlight": "Rate-distortion theory controls field complexity; redundant channels with evidence pointers strengthen guarantees"}
+{"chunk_id": 36, "primary": "Mathematics", "secondary": "Architecture", "highlight": "Transfer guaranteed when structure is sufficient invariant abstraction preserving task-relevant information"}
+{"chunk_id": 37, "primary": "Mathematics", "secondary": null, "highlight": "Invariant strata semantics and domain-adaptation bounds: task-conditional distributions must match across domains"}
+{"chunk_id": 38, "primary": "Architecture", "secondary": "Mathematics", "highlight": "Network scaling: objects O(Nd), relations O(N²), depth O(L); compositional grammar saves via reuse"}
+{"chunk_id": 39, "primary": "Architecture", "secondary": null, "highlight": "Graph/stratification components scale differently: logits require O(Ad) for A actions with derived tie-wall geometry"}

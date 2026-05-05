@@ -1,0 +1,10 @@
+{"chunk_id": 0, "primary": "Mathematics", "secondary": null, "highlight": "Planar dual graphs, Euler's formula, cycle-cut duality, Whitney's matroid planarity theorem"}
+{"chunk_id": 1, "primary": "Mathematics", "secondary": null, "highlight": "Cycle-cut duality, bridges-loops correspondence; Whitney's matroid criterion for planarity of dual graphs"}
+{"chunk_id": 2, "primary": "Mathematics", "secondary": null, "highlight": "Simplicial complexes as topological generalizations of graphs; planar duality is cell-complex dimension reversal"}
+{"chunk_id": 3, "primary": "Mathematics", "secondary": null, "highlight": "Dimension-reversal rule k↔n−k in higher-dimensional duality; boundary/coboundary operators generalize cycle-cut"}
+{"chunk_id": 4, "primary": "Mathematics", "secondary": null, "highlight": "Monodromy graphs via double cosets; universal representation theorem for arbitrary graphs; arc-transitive generation"}
+{"chunk_id": 5, "primary": "Mathematics", "secondary": null, "highlight": "Dart permutations ρ and τ encode graph/map structure; coset/double-coset algebraic representation framework"}
+{"chunk_id": 6, "primary": "Mathematics", "secondary": null, "highlight": "Monodromy-graph paper extends Sabidussi coset-graph theory via double cosets; novelty in enumeration and packaging"}
+{"chunk_id": 7, "primary": "Mathematics", "secondary": "Architecture", "highlight": "Catastrophe theory connects to monodromy graphs via discriminant strata; bridge between singularity/bifurcation and graph representation"}
+{"chunk_id": 8, "primary": "Mathematics", "secondary": null, "highlight": "Vanishing cycles, Picard–Lefschetz theory, monodromy actions on solution branches; singularities as combinatorial graph shadows"}
+{"chunk_id": 9, "primary": "Mathematics", "secondary": null, "highlight": "ADE Dynkin graphs, resolution graphs of singularities, McKay correspondence, quivers, graph hypersurfaces from algebraic geometry"}

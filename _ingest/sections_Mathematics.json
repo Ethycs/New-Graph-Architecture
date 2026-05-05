@@ -1,0 +1,45 @@
+{
+  "piece": "Mathematics",
+  "sections": [
+    {
+      "section_name": "Planar Duality and Simplicial Generalization",
+      "chunk_ids": [0, 1, 2, 3],
+      "rationale": "Establishes the foundational duality theory from Euler's formula and Whitney's matroid planarity criterion through cycle-cut duality, then generalizes it to the dimension-reversal rule k↔n−k in simplicial complexes with boundary/coboundary operators."
+    },
+    {
+      "section_name": "Monodromy Graphs and Coset Representations",
+      "chunk_ids": [4, 5, 6],
+      "rationale": "Develops the algebraic framework of dart permutations and double-coset representations that encode arbitrary graph and map structures, extending Sabidussi's coset-graph theory to a universal monodromy-graph formalism."
+    },
+    {
+      "section_name": "Singularities, Vanishing Cycles, and ADE Diagrams",
+      "chunk_ids": [7, 8, 9, 10],
+      "rationale": "Connects catastrophe theory and monodromy graphs through Picard–Lefschetz theory and vanishing cycles, culminating in the ADE Dynkin graphs, McKay correspondence, quivers, and graph hypersurfaces that arise from algebraic singularities."
+    },
+    {
+      "section_name": "Catastrophe Theory and Discriminant Strata",
+      "chunk_ids": [53],
+      "rationale": "Formalizes how mode switches in parameterized systems correspond to crossing discriminant sets in catastrophe theory, providing the mathematical foundation for bifurcation analysis in stratified control spaces."
+    },
+    {
+      "section_name": "Gromov Hyperbolicity and Tree-Like Metric Spaces",
+      "chunk_ids": [19, 21, 50],
+      "rationale": "Defines and characterizes Gromov's δ-hyperbolicity via thin geodesic triangles and the four-point condition, establishing the precise sense in which a metric space or graph is tree-like."
+    },
+    {
+      "section_name": "Whitney Stratification and Group-Action Orbit Types",
+      "chunk_ids": [16, 51, 24, 25, 54, 55],
+      "rationale": "Introduces Whitney stratification of singular spaces into smooth strata with controlled tangent-plane compatibility, then derives orbit-type stratifications from group actions on geometric realizations, where nontrivial stabilizers produce quotient singularities."
+    },
+    {
+      "section_name": "Information-Theoretic Transfer and Rate-Distortion",
+      "chunk_ids": [34, 35, 36, 37],
+      "rationale": "Applies information theory—data processing inequality, mutual information, rate-distortion theory, and domain-adaptation bounds—to establish rigorous guarantees that structured geometric abstractions preserve task-relevant information across domains."
+    },
+    {
+      "section_name": "Bit Budgets, IDF Weighting, and Scaling Laws",
+      "chunk_ids": [40, 41, 42, 46, 47, 57],
+      "rationale": "Quantifies the complexity of stratified agent representations through singularity-IDF formulas, Pythagorean feature decompositions, statistical partition functions, and information-theoretic bit-budget scaling laws that govern branching and hyperbolic depth."
+    }
+  ]
+}

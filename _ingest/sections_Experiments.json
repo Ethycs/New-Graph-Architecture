@@ -1,0 +1,30 @@
+{
+  "piece": "Experiments",
+  "sections": [
+    {
+      "section_name": "Experiment Register and Ablation Plan",
+      "chunk_ids": [69],
+      "rationale": "Introduces the full experimental register E0–E9 and ablation matrix A0–A9, laying out the design and scope of all planned tests."
+    },
+    {
+      "section_name": "Ablation Descriptions E4–E7",
+      "chunk_ids": [70],
+      "rationale": "Provides detailed descriptions of ablations E4–E7 covering singularity-detector AUROC, IDF weighting, group-quotient attention, and reservoir-readout efficiency."
+    },
+    {
+      "section_name": "MNIST Typed-State Classifier Run",
+      "chunk_ids": [61],
+      "rationale": "Reports the concrete MNIST experiment achieving 97.78% accuracy with typed states and confusion-graph singularity detection as a proof-of-concept."
+    },
+    {
+      "section_name": "BabyAI Task Selection and Setup",
+      "chunk_ids": [62],
+      "rationale": "Describes the selection of the BabyAI dataset and its compositional instruction grammar as the testbed for hierarchical task and state-machine evaluation."
+    },
+    {
+      "section_name": "Synthetic BabyAI Run and Results",
+      "chunk_ids": [63, 71],
+      "rationale": "Presents the synthetic BabyAI-like grid experiment showing graph-mask boosting accuracy from 86.5% to 96.8% and the typed-feature gain of +10 accuracy, including the boundary condition where current-state identity reduces the benefit."
+    }
+  ]
+}

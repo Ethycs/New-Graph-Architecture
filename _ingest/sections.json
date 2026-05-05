@@ -1,0 +1,389 @@
+{
+  "Mathematics": {
+    "piece": "Mathematics",
+    "sections": [
+      {
+        "section_name": "Planar Duality and Simplicial Generalization",
+        "rationale": "Establishes the foundational duality theory from Euler's formula and Whitney's matroid planarity criterion through cycle-cut duality, then generalizes it to the dimension-reversal rule k↔n−k in simplicial complexes with boundary/coboundary operators.",
+        "owned_chunk_ids": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Monodromy Graphs and Coset Representations",
+        "rationale": "Develops the algebraic framework of dart permutations and double-coset representations that encode arbitrary graph and map structures, extending Sabidussi's coset-graph theory to a universal monodromy-graph formalism.",
+        "owned_chunk_ids": [
+          4,
+          5,
+          6
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Singularities, Vanishing Cycles, and ADE Diagrams",
+        "rationale": "Connects catastrophe theory and monodromy graphs through Picard–Lefschetz theory and vanishing cycles, culminating in the ADE Dynkin graphs, McKay correspondence, quivers, and graph hypersurfaces that arise from algebraic singularities.",
+        "owned_chunk_ids": [
+          7,
+          8,
+          9,
+          10
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Catastrophe Theory and Discriminant Strata",
+        "rationale": "Formalizes how mode switches in parameterized systems correspond to crossing discriminant sets in catastrophe theory, providing the mathematical foundation for bifurcation analysis in stratified control spaces.",
+        "owned_chunk_ids": [
+          53
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Gromov Hyperbolicity and Tree-Like Metric Spaces",
+        "rationale": "Defines and characterizes Gromov's δ-hyperbolicity via thin geodesic triangles and the four-point condition, establishing the precise sense in which a metric space or graph is tree-like.",
+        "owned_chunk_ids": [
+          19,
+          21,
+          50
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Whitney Stratification and Group-Action Orbit Types",
+        "rationale": "Introduces Whitney stratification of singular spaces into smooth strata with controlled tangent-plane compatibility, then derives orbit-type stratifications from group actions on geometric realizations, where nontrivial stabilizers produce quotient singularities.",
+        "owned_chunk_ids": [
+          16,
+          51,
+          24,
+          25,
+          54,
+          55
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Information-Theoretic Transfer and Rate-Distortion",
+        "rationale": "Applies information theory—data processing inequality, mutual information, rate-distortion theory, and domain-adaptation bounds—to establish rigorous guarantees that structured geometric abstractions preserve task-relevant information across domains.",
+        "owned_chunk_ids": [
+          34,
+          35,
+          36,
+          37
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Bit Budgets, IDF Weighting, and Scaling Laws",
+        "rationale": "Quantifies the complexity of stratified agent representations through singularity-IDF formulas, Pythagorean feature decompositions, statistical partition functions, and information-theoretic bit-budget scaling laws that govern branching and hyperbolic depth.",
+        "owned_chunk_ids": [
+          40,
+          41,
+          42,
+          46,
+          47,
+          57
+        ],
+        "xref_chunk_ids": []
+      }
+    ],
+    "extra_xrefs": [
+      {
+        "chunk_id": 11,
+        "lives_in": "Architecture",
+        "highlight": "Ordered typed zig-zag between graphs and singularities via realization and extraction functors."
+      },
+      {
+        "chunk_id": 12,
+        "lives_in": "Architecture",
+        "highlight": "Disciplined pipeline: raw graph→typed graph→geometric realization→singularity operation→extracted graph."
+      },
+      {
+        "chunk_id": 13,
+        "lives_in": "Architecture",
+        "highlight": "Three routes for agent task graph to singularity: graph hypersurface, quiver variety, discrete Morse."
+      },
+      {
+        "chunk_id": 14,
+        "lives_in": "Architecture",
+        "highlight": "Quiver varieties and Morse theory for agent singularities; concrete research loop example with bifurcations."
+      },
+      {
+        "chunk_id": 15,
+        "lives_in": "Architecture",
+        "highlight": "Catastrophe-theoretic agent control; enriched task graphs with monodromy, stratification, singularity sets."
+      },
+      {
+        "chunk_id": 17,
+        "lives_in": "Architecture",
+        "highlight": "Hyperbolic task space: negative curvature naturally encodes branching hierarchy and asymptotic research directions."
+      },
+      {
+        "chunk_id": 18,
+        "lives_in": "Architecture",
+        "highlight": "Hyperbolic quotients by group actions; monodromy loops; memory hierarchies at boundary; hybrid local/global design."
+      },
+      {
+        "chunk_id": 22,
+        "lives_in": "Architecture",
+        "highlight": "Whitney stratification of agent state/control space by behavioral regimes and decision boundaries"
+      },
+      {
+        "chunk_id": 28,
+        "lives_in": "Architecture",
+        "highlight": "Energy function and statistical partition function weigh behavioral strata by cost, uncertainty, conflict"
+      },
+      {
+        "chunk_id": 31,
+        "lives_in": "Architecture",
+        "highlight": "Guaranteed bridge from formal grammar to stratified geometry via operational semantics and compiler"
+      },
+      {
+        "chunk_id": 38,
+        "lives_in": "Architecture",
+        "highlight": "Network scaling: objects O(Nd), relations O(N²), depth O(L); compositional grammar saves via reuse"
+      },
+      {
+        "chunk_id": 52,
+        "lives_in": "Architecture",
+        "highlight": "Whitney-stratified agent state space yields behavioral regimes via action-score functions and constraint signatures"
+      },
+      {
+        "chunk_id": 58,
+        "lives_in": "Architecture",
+        "highlight": "Softmax and energy-based ML models induce decision stratification; ML learns energy parameters from agent traces"
+      },
+      {
+        "chunk_id": 67,
+        "lives_in": "Architecture",
+        "highlight": "Reservoir computing interpretation: frozen LLM plus structured typed-graph-geometric readout layer."
+      },
+      {
+        "chunk_id": 68,
+        "lives_in": "Architecture",
+        "highlight": "Clarifying reservoir computing vs full architecture: hyperbolic geometry as phase space, not reservoir itself."
+      }
+    ]
+  },
+  "Architecture": {
+    "piece": "Architecture",
+    "sections": [
+      {
+        "section_name": "Graph-Singularity Zig-Zag Pipeline",
+        "rationale": "Establishes the foundational pipeline from typed task graphs through geometric realization to singularity extraction and back, including three concrete routes (graph hypersurface, quiver variety, discrete Morse) and catastrophe-theoretic enrichment of agent task graphs.",
+        "owned_chunk_ids": [
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Hyperbolic Task Space and Geometry",
+        "rationale": "Motivates and defines hyperbolic geometry as the natural host for agent task graphs, covering negative-curvature hierarchy encoding, group-action quotients for monodromy loops, boundary memory, and the concrete hyperbolic graph extrusion with node regions and edge corridors.",
+        "owned_chunk_ids": [
+          17,
+          18,
+          20,
+          60
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Whitney Stratification of Agent State Space",
+        "rationale": "Defines how the agent state and control space is decomposed into behavioral regimes via Whitney stratification, with agent state components (memory, evidence, confidence, budget) determining strata, catastrophe-theoretic mode switches at discriminant boundaries, and the partition map assigning states to strata.",
+        "owned_chunk_ids": [
+          22,
+          23,
+          52,
+          56
+        ],
+        "xref_chunk_ids": [
+          {
+            "chunk_id": 53,
+            "lives_in": "Mathematics",
+            "highlight": "Catastrophe theory studies agent mode switches as control parameters cross discriminant sets"
+          }
+        ]
+      },
+      {
+        "section_name": "Group Symmetry, Quotient Compression, and Singularity Strata",
+        "rationale": "Describes how group-symmetry quotients collapse equivalent agent tasks into singular strata and how the partition map classifies agent states by dominant action, stabilizer type, constraint signs, and rank signatures.",
+        "owned_chunk_ids": [
+          26,
+          27
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Energy Function and Partition Function over Strata",
+        "rationale": "Defines the statistical energy function and partition function that weight behavioral strata by cost, uncertainty, and conflict, and shows how softmax and energy-based ML models learn the stratified geometry from agent traces.",
+        "owned_chunk_ids": [
+          28,
+          29,
+          30,
+          58
+        ],
+        "xref_chunk_ids": [
+          {
+            "chunk_id": 57,
+            "lives_in": "Mathematics",
+            "highlight": "Statistical partition function weights strata by energy, measuring probability mass in behavioral regimes"
+          }
+        ]
+      },
+      {
+        "section_name": "Grammar, Compiler, and Typed Field Pipeline",
+        "rationale": "Describes the formal grammar-to-stratified-geometry bridge: a procedure grammar is compiled through ML scoring into typed quantitative fields and evaluated deterministically, yielding a four-layer system (grammar, ML scorer, state machine, distribution) that maps agent procedures to geometric objects.",
+        "owned_chunk_ids": [
+          31,
+          32,
+          33,
+          43,
+          59
+        ],
+        "xref_chunk_ids": [
+          {
+            "chunk_id": 42,
+            "lives_in": "Mathematics",
+            "highlight": "Pythagorean decompositions of orthogonal feature blocks; architecture pipeline from ML to distribution."
+          }
+        ]
+      },
+      {
+        "section_name": "Scaling, Full Component Assembly, and Efficiency",
+        "rationale": "Characterizes the scaling behavior of the network (objects, relations, depth), assembles the complete thirteen-component hyperbolic agent object A_hyp, and summarizes efficiency gains from typed grammar, graph constraints, hyperbolic hierarchy, group quotient attention, IDF weighting, and structure-before-model allocation.",
+        "owned_chunk_ids": [
+          38,
+          39,
+          44,
+          45,
+          64,
+          65,
+          66
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Reservoir Computing Readout and Expert Validation",
+        "rationale": "Frames the full architecture as a reservoir-computing readout (frozen LLM plus structured typed-graph-geometric layer), clarifies the role of hyperbolic geometry as phase space, and reports the ML expert panel consensus on the system's promise and required validation steps.",
+        "owned_chunk_ids": [
+          48,
+          49,
+          67,
+          68
+        ],
+        "xref_chunk_ids": []
+      }
+    ],
+    "extra_xrefs": [
+      {
+        "chunk_id": 7,
+        "lives_in": "Mathematics",
+        "highlight": "Catastrophe theory connects to monodromy graphs via discriminant strata; bridge between singularity/bifurcation and graph representation"
+      },
+      {
+        "chunk_id": 10,
+        "lives_in": "Mathematics",
+        "highlight": "Singularities induce resolution graphs, Coxeter-Dynkin diagrams, McKay graphs, quivers, graph hypersurfaces."
+      },
+      {
+        "chunk_id": 34,
+        "lives_in": "Mathematics",
+        "highlight": "Data processing inequality and mutual information as bridge metrics for model information into structure"
+      },
+      {
+        "chunk_id": 36,
+        "lives_in": "Mathematics",
+        "highlight": "Transfer guaranteed when structure is sufficient invariant abstraction preserving task-relevant information"
+      },
+      {
+        "chunk_id": 41,
+        "lives_in": "Mathematics",
+        "highlight": "IDF-adjusted energy functions and partition functions; ML applications of class-imbalance correction."
+      },
+      {
+        "chunk_id": 47,
+        "lives_in": "Mathematics",
+        "highlight": "Scaling laws for bit budget: task states logarithmic, branching exponential, hyperbolic depth plus branch choices dominates complexity."
+      },
+      {
+        "chunk_id": 61,
+        "lives_in": "Experiments",
+        "highlight": "MNIST classifier test achieving 97.78% accuracy with typed states and confusion-graph singularity detection."
+      },
+      {
+        "chunk_id": 62,
+        "lives_in": "Experiments",
+        "highlight": "BabyAI dataset selection for hierarchical task/state-machine testing with compositional instruction grammar."
+      },
+      {
+        "chunk_id": 63,
+        "lives_in": "Experiments",
+        "highlight": "Synthetic BabyAI-like grid task showing graph mask boosting accuracy 86.5% to 96.8%, eliminating illegal transitions."
+      },
+      {
+        "chunk_id": 69,
+        "lives_in": "Experiments",
+        "highlight": "Experimental register E0-E9 planning ablation matrix A0-A9 for testing graph mask, typing, uncertainty, singularity, IDF."
+      },
+      {
+        "chunk_id": 71,
+        "lives_in": "Experiments",
+        "highlight": "Synthetic run showing typed features and graph mask give +10 accuracy, but diminish when classifier sees current state identity."
+      }
+    ]
+  },
+  "Experiments": {
+    "piece": "Experiments",
+    "sections": [
+      {
+        "section_name": "Experiment Register and Ablation Plan",
+        "rationale": "Introduces the full experimental register E0–E9 and ablation matrix A0–A9, laying out the design and scope of all planned tests.",
+        "owned_chunk_ids": [
+          69
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Ablation Descriptions E4–E7",
+        "rationale": "Provides detailed descriptions of ablations E4–E7 covering singularity-detector AUROC, IDF weighting, group-quotient attention, and reservoir-readout efficiency.",
+        "owned_chunk_ids": [
+          70
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "MNIST Typed-State Classifier Run",
+        "rationale": "Reports the concrete MNIST experiment achieving 97.78% accuracy with typed states and confusion-graph singularity detection as a proof-of-concept.",
+        "owned_chunk_ids": [
+          61
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "BabyAI Task Selection and Setup",
+        "rationale": "Describes the selection of the BabyAI dataset and its compositional instruction grammar as the testbed for hierarchical task and state-machine evaluation.",
+        "owned_chunk_ids": [
+          62
+        ],
+        "xref_chunk_ids": []
+      },
+      {
+        "section_name": "Synthetic BabyAI Run and Results",
+        "rationale": "Presents the synthetic BabyAI-like grid experiment showing graph-mask boosting accuracy from 86.5% to 96.8% and the typed-feature gain of +10 accuracy, including the boundary condition where current-state identity reduces the benefit.",
+        "owned_chunk_ids": [
+          63,
+          71
+        ],
+        "xref_chunk_ids": []
+      }
+    ],
+    "extra_xrefs": []
+  }
+}

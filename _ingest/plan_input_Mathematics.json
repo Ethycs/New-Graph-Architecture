@@ -1,0 +1,177 @@
+{
+  "piece": "Mathematics",
+  "sections": [
+    {
+      "section_name": "Planar Duality and Simplicial Generalization",
+      "rationale": "Establishes the foundational duality theory from Euler's formula and Whitney's matroid planarity criterion through cycle-cut duality, then generalizes it to the dimension-reversal rule k↔n−k in simplicial complexes with boundary/coboundary operators.",
+      "owned_chunks": [
+        {
+          "chunk_id": 0,
+          "highlight": "Planar dual graphs, Euler's formula, cycle-cut duality, Whitney's matroid planarity theorem"
+        },
+        {
+          "chunk_id": 1,
+          "highlight": "Cycle-cut duality, bridges-loops correspondence; Whitney's matroid criterion for planarity of dual graphs"
+        },
+        {
+          "chunk_id": 2,
+          "highlight": "Simplicial complexes as topological generalizations of graphs; planar duality is cell-complex dimension reversal"
+        },
+        {
+          "chunk_id": 3,
+          "highlight": "Dimension-reversal rule k↔n−k in higher-dimensional duality; boundary/coboundary operators generalize cycle-cut"
+        }
+      ]
+    },
+    {
+      "section_name": "Monodromy Graphs and Coset Representations",
+      "rationale": "Develops the algebraic framework of dart permutations and double-coset representations that encode arbitrary graph and map structures, extending Sabidussi's coset-graph theory to a universal monodromy-graph formalism.",
+      "owned_chunks": [
+        {
+          "chunk_id": 4,
+          "highlight": "Monodromy graphs via double cosets; universal representation theorem for arbitrary graphs; arc-transitive generation"
+        },
+        {
+          "chunk_id": 5,
+          "highlight": "Dart permutations ρ and τ encode graph/map structure; coset/double-coset algebraic representation framework"
+        },
+        {
+          "chunk_id": 6,
+          "highlight": "Monodromy-graph paper extends Sabidussi coset-graph theory via double cosets; novelty in enumeration and packaging"
+        }
+      ]
+    },
+    {
+      "section_name": "Singularities, Vanishing Cycles, and ADE Diagrams",
+      "rationale": "Connects catastrophe theory and monodromy graphs through Picard–Lefschetz theory and vanishing cycles, culminating in the ADE Dynkin graphs, McKay correspondence, quivers, and graph hypersurfaces that arise from algebraic singularities.",
+      "owned_chunks": [
+        {
+          "chunk_id": 7,
+          "highlight": "Catastrophe theory connects to monodromy graphs via discriminant strata; bridge between singularity/bifurcation and graph representation"
+        },
+        {
+          "chunk_id": 8,
+          "highlight": "Vanishing cycles, Picard–Lefschetz theory, monodromy actions on solution branches; singularities as combinatorial graph shadows"
+        },
+        {
+          "chunk_id": 9,
+          "highlight": "ADE Dynkin graphs, resolution graphs of singularities, McKay correspondence, quivers, graph hypersurfaces from algebraic geometry"
+        },
+        {
+          "chunk_id": 10,
+          "highlight": "Singularities induce resolution graphs, Coxeter-Dynkin diagrams, McKay graphs, quivers, graph hypersurfaces."
+        }
+      ]
+    },
+    {
+      "section_name": "Catastrophe Theory and Discriminant Strata",
+      "rationale": "Formalizes how mode switches in parameterized systems correspond to crossing discriminant sets in catastrophe theory, providing the mathematical foundation for bifurcation analysis in stratified control spaces.",
+      "owned_chunks": [
+        {
+          "chunk_id": 53,
+          "highlight": "Catastrophe theory studies agent mode switches as control parameters cross discriminant sets"
+        }
+      ]
+    },
+    {
+      "section_name": "Gromov Hyperbolicity and Tree-Like Metric Spaces",
+      "rationale": "Defines and characterizes Gromov's δ-hyperbolicity via thin geodesic triangles and the four-point condition, establishing the precise sense in which a metric space or graph is tree-like.",
+      "owned_chunks": [
+        {
+          "chunk_id": 19,
+          "highlight": "Gromov hyperbolicity δ measures tree-likeness via thin geodesic triangles and 4-point distance pattern."
+        },
+        {
+          "chunk_id": 21,
+          "highlight": "Gromov hyperbolicity: thin geodesic triangles measure tree-likeness of metric spaces and graphs"
+        },
+        {
+          "chunk_id": 50,
+          "highlight": "Gromov hyperbolicity measures tree-like versus grid-like structure in metric spaces and graphs"
+        }
+      ]
+    },
+    {
+      "section_name": "Whitney Stratification and Group-Action Orbit Types",
+      "rationale": "Introduces Whitney stratification of singular spaces into smooth strata with controlled tangent-plane compatibility, then derives orbit-type stratifications from group actions on geometric realizations, where nontrivial stabilizers produce quotient singularities.",
+      "owned_chunks": [
+        {
+          "chunk_id": 16,
+          "highlight": "Finite simplicial complexes embed in R^{2d+1}; singular spaces finitely determined; practical agent upper limits."
+        },
+        {
+          "chunk_id": 51,
+          "highlight": "Whitney stratification decomposes singular spaces into smooth strata with controlled tangent plane compatibility"
+        },
+        {
+          "chunk_id": 24,
+          "highlight": "Group actions on geometric realizations: stabilizer types induce orbit-type stratifications of spaces"
+        },
+        {
+          "chunk_id": 25,
+          "highlight": "Global group action quotients produce singularities where stabilizers are nontrivial or increase"
+        },
+        {
+          "chunk_id": 54,
+          "highlight": "Group actions on graph geometric realizations produce orbit-type strata with stratifier-dependent singularities"
+        },
+        {
+          "chunk_id": 55,
+          "highlight": "Global group actions create quotient singularities at points with nontrivial stabilizers"
+        }
+      ]
+    },
+    {
+      "section_name": "Information-Theoretic Transfer and Rate-Distortion",
+      "rationale": "Applies information theory—data processing inequality, mutual information, rate-distortion theory, and domain-adaptation bounds—to establish rigorous guarantees that structured geometric abstractions preserve task-relevant information across domains.",
+      "owned_chunks": [
+        {
+          "chunk_id": 34,
+          "highlight": "Data processing inequality and mutual information as bridge metrics for model information into structure"
+        },
+        {
+          "chunk_id": 35,
+          "highlight": "Rate-distortion theory controls field complexity; redundant channels with evidence pointers strengthen guarantees"
+        },
+        {
+          "chunk_id": 36,
+          "highlight": "Transfer guaranteed when structure is sufficient invariant abstraction preserving task-relevant information"
+        },
+        {
+          "chunk_id": 37,
+          "highlight": "Invariant strata semantics and domain-adaptation bounds: task-conditional distributions must match across domains"
+        }
+      ]
+    },
+    {
+      "section_name": "Bit Budgets, IDF Weighting, and Scaling Laws",
+      "rationale": "Quantifies the complexity of stratified agent representations through singularity-IDF formulas, Pythagorean feature decompositions, statistical partition functions, and information-theoretic bit-budget scaling laws that govern branching and hyperbolic depth.",
+      "owned_chunks": [
+        {
+          "chunk_id": 40,
+          "highlight": "Singularity-IDF formula: inverse document frequency weights rare singularity types."
+        },
+        {
+          "chunk_id": 41,
+          "highlight": "IDF-adjusted energy functions and partition functions; ML applications of class-imbalance correction."
+        },
+        {
+          "chunk_id": 42,
+          "highlight": "Pythagorean decompositions of orthogonal feature blocks; architecture pipeline from ML to distribution."
+        },
+        {
+          "chunk_id": 46,
+          "highlight": "Information-theoretic bit budget: minimum log_2 C bits for C regimes, practical runtime formula with state, scores, distribution, history, evidence."
+        },
+        {
+          "chunk_id": 47,
+          "highlight": "Scaling laws for bit budget: task states logarithmic, branching exponential, hyperbolic depth plus branch choices dominates complexity."
+        },
+        {
+          "chunk_id": 57,
+          "highlight": "Statistical partition function weights strata by energy, measuring probability mass in behavioral regimes"
+        }
+      ]
+    }
+  ]
+}

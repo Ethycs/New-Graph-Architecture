@@ -1,0 +1,133 @@
+{
+  "piece": "Architecture",
+  "sections": [
+    {
+      "section_name": "Graph-Singularity Zig-Zag Pipeline",
+      "preface": "The architecture rests on a typed zig-zag between agent task graphs and singularity geometry, mediated by realization and extraction functors. Three concrete routes (graph hypersurface, quiver variety, discrete Morse) and catastrophe-theoretic enrichment make this pipeline operational.",
+      "subsections": [
+        {
+          "subsection_name": "Typed Zig-Zag Pipeline",
+          "chunk_ids": [11, 12]
+        },
+        {
+          "subsection_name": "Three Routes to Singularities",
+          "chunk_ids": [13, 14]
+        },
+        {
+          "subsection_name": "Catastrophe-Theoretic Enrichment",
+          "chunk_ids": [15]
+        }
+      ]
+    },
+    {
+      "section_name": "Hyperbolic Task Space and Geometry",
+      "preface": "Hyperbolic geometry is the natural host for branching agent task graphs, encoding hierarchy through negative curvature and supporting boundary memory and group-action quotients. A concrete extrusion realizes nodes as regions and edges as corridors for ML scoring.",
+      "subsections": [
+        {
+          "subsection_name": "Negative Curvature and Hierarchy",
+          "chunk_ids": [17, 20]
+        },
+        {
+          "subsection_name": "Quotients, Monodromy, Boundary Memory",
+          "chunk_ids": [18]
+        },
+        {
+          "subsection_name": "Hyperbolic Graph Extrusion",
+          "chunk_ids": [60]
+        }
+      ]
+    },
+    {
+      "section_name": "Whitney Stratification of Agent State Space",
+      "preface": "The agent state and control space is decomposed into behavioral regimes via Whitney stratification, with state components determining strata and a partition map assigning states to them.",
+      "subsections": [
+        {
+          "subsection_name": "Stratifying Behavioral Regimes",
+          "chunk_ids": [22, 52]
+        },
+        {
+          "subsection_name": "State Encoding and Partition Map",
+          "chunk_ids": [23, 56]
+        }
+      ]
+    },
+    {
+      "section_name": "Group Symmetry, Quotient Compression, and Singularity Strata",
+      "preface": "Group-symmetry quotients collapse equivalent agent tasks into singular strata, and the partition map classifies agent states by dominant action, stabilizer type, and rank signatures.",
+      "subsections": [
+        {
+          "subsection_name": "Quotient Compression and Singular Strata",
+          "chunk_ids": [26]
+        },
+        {
+          "subsection_name": "Classifying States by Signatures",
+          "chunk_ids": [27]
+        }
+      ]
+    },
+    {
+      "section_name": "Energy Function and Partition Function over Strata",
+      "preface": "An energy function and statistical partition function weight behavioral strata by cost, uncertainty, and conflict. Softmax and energy-based ML models learn this stratified geometry directly from agent traces.",
+      "subsections": [
+        {
+          "subsection_name": "Energy Weighting of Strata",
+          "chunk_ids": [28, 30]
+        },
+        {
+          "subsection_name": "Energy-Based ML Readout",
+          "chunk_ids": [29, 58]
+        }
+      ]
+    },
+    {
+      "section_name": "Grammar, Compiler, and Typed Field Pipeline",
+      "preface": "A formal procedure grammar is compiled through ML scoring into typed quantitative fields and evaluated deterministically, bridging procedural description and stratified geometry. The result is a layered system mapping grammar to geometric agent objects.",
+      "subsections": [
+        {
+          "subsection_name": "Grammar-to-Geometry Bridge",
+          "chunk_ids": [31, 59]
+        },
+        {
+          "subsection_name": "Compiler and Typed Fields",
+          "chunk_ids": [32]
+        },
+        {
+          "subsection_name": "Layered System Architecture",
+          "chunk_ids": [33, 43]
+        }
+      ]
+    },
+    {
+      "section_name": "Scaling, Full Component Assembly, and Efficiency",
+      "preface": "The network's scaling behavior, the complete thirteen-component hyperbolic agent object A_hyp, and efficiency gains from typed grammar, hyperbolic hierarchy, and structure-before-model allocation are characterized here.",
+      "subsections": [
+        {
+          "subsection_name": "Network Scaling Behavior",
+          "chunk_ids": [38, 39]
+        },
+        {
+          "subsection_name": "Thirteen-Component Agent Object",
+          "chunk_ids": [44, 45]
+        },
+        {
+          "subsection_name": "Efficiency and Allocation Philosophy",
+          "chunk_ids": [64, 65, 66]
+        }
+      ]
+    },
+    {
+      "section_name": "Reservoir Computing Readout and Expert Validation",
+      "preface": "The full architecture is framed as a reservoir-computing readout: a frozen LLM combined with a structured typed-graph-geometric layer. An ML expert panel consensus identifies its promise and the validation steps needed for robustness.",
+      "subsections": [
+        {
+          "subsection_name": "Reservoir Computing Interpretation",
+          "chunk_ids": [67, 68]
+        },
+        {
+          "subsection_name": "Expert Panel and Validation",
+          "chunk_ids": [48, 49]
+        }
+      ]
+    }
+  ]
+}
