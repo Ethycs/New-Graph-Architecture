@@ -1,0 +1,342 @@
+# Dyck-2 FSM with max_depth=4.
+#
+# State encoding:
+#   S0           -- empty stack (no open brackets)
+#   S{d}_{b}    -- stack of depth d (1 <= d <= 4), top-of-stack bracket b
+#                    where b in 0..1. For k=2: b=0 is '(', b=1 is '['.
+# Total states: 1 + 4 * 2 = 9.
+#
+# Transition rules:
+#   Open(b): from any state Sd_? with d < 4, push 'b' -> S{d+1}_{b}.
+#            From max-depth states (d == 4), opening is ILLEGAL (no edge).
+#   Close(b): from Sd_b' (d >= 1), only legal when b == b' (must match top-of-stack).
+#             From S1_b, matching close pops to S0.
+#             From Sd_b (d > 1), matching close pops to S{d-1}_b. This convention
+#             collapses the underlying-top non-determinism: it preserves the b-symmetry
+#             (S_2 orbit on the FSM) while making wrong-bracket closes lead to states
+#             that are NOT reachable from the source. Concretely, from S2_0 a close_1
+#             would 'naturally' land on S1_1, but that edge does not exist (only the
+#             matching-close edge S2_0 -> S1_0 is in the FSM). The legality mask must
+#             zero S1_1 in the no-mask classifier's would-be prediction.
+#   Close on wrong bracket: NO EDGE -- the legality mask must zero this target.
+#
+# Cycle structure: open(b) followed by close(b) returns to the originating state
+# whenever d < MAX_DEPTH (open(b) goes to S{d+1}_b, close(b) pops back to S{d}_b).
+# This produces real monodromy revisits.
+#
+# Embedding: 16-dimensional Gaussian (mean=0, std=0.25), seed 20251005.
+# Distinct, low-magnitude vectors per state, used by the hyperbolic-vs-euclidean
+# diagnostic. They are NOT the runtime classifier features.
+
+schema_version: '1.0'
+name: dyck_k2_d4
+vertex_count: 9
+edge_count: 22
+vertices:
+- id: S0
+  label: S0
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_0
+  label: S1_0
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_1
+  label: S1_1
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_0
+  label: S2_0
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_1
+  label: S2_1
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_0
+  label: S3_0
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_1
+  label: S3_1
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S4_0
+  label: S4_0
+  layer: 4
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S4_1
+  label: S4_1
+  layer: 4
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+edges:
+- source: S0
+  target: S1_0
+  label: open_0
+  weight: 1.0
+- source: S0
+  target: S1_1
+  label: open_1
+  weight: 1.0
+- source: S1_0
+  target: S2_0
+  label: open_0
+  weight: 1.0
+- source: S1_0
+  target: S2_1
+  label: open_1
+  weight: 1.0
+- source: S1_0
+  target: S0
+  label: close_0
+  weight: 1.0
+- source: S1_1
+  target: S2_0
+  label: open_0
+  weight: 1.0
+- source: S1_1
+  target: S2_1
+  label: open_1
+  weight: 1.0
+- source: S1_1
+  target: S0
+  label: close_1
+  weight: 1.0
+- source: S2_0
+  target: S3_0
+  label: open_0
+  weight: 1.0
+- source: S2_0
+  target: S3_1
+  label: open_1
+  weight: 1.0
+- source: S2_0
+  target: S1_0
+  label: close_0
+  weight: 1.0
+- source: S2_1
+  target: S3_0
+  label: open_0
+  weight: 1.0
+- source: S2_1
+  target: S3_1
+  label: open_1
+  weight: 1.0
+- source: S2_1
+  target: S1_1
+  label: close_1
+  weight: 1.0
+- source: S3_0
+  target: S4_0
+  label: open_0
+  weight: 1.0
+- source: S3_0
+  target: S4_1
+  label: open_1
+  weight: 1.0
+- source: S3_0
+  target: S2_0
+  label: close_0
+  weight: 1.0
+- source: S3_1
+  target: S4_0
+  label: open_0
+  weight: 1.0
+- source: S3_1
+  target: S4_1
+  label: open_1
+  weight: 1.0
+- source: S3_1
+  target: S2_1
+  label: close_1
+  weight: 1.0
+- source: S4_0
+  target: S3_0
+  label: close_0
+  weight: 1.0
+- source: S4_1
+  target: S3_1
+  label: close_1
+  weight: 1.0
+coordinates:
+  space: euclidean
+  dimension: 16
+  node_embeddings:
+    S0:
+    - 0.0339506889458179
+    - 0.1020985463282972
+    - 0.5455872519436097
+    - 0.20328644739136234
+    - -0.11954007387694209
+    - 0.4628029285056132
+    - -0.030545629002759422
+    - -0.2585060662507396
+    - 0.10880244749981188
+    - -0.13235581521136439
+    - 0.46260730138759254
+    - 0.4403065640125312
+    - -0.14744456256455496
+    - -0.046418263565911395
+    - -0.10973638704286443
+    - -0.16760424676795732
+    S1_0:
+    - -0.42708562975619496
+    - -0.4736845986613505
+    - 0.09127465402258117
+    - 0.0803490655045579
+    - 0.19309691989798092
+    - -0.0565261871088937
+    - -0.2319716714898646
+    - 0.028369869176248258
+    - 0.4681864244292293
+    - 0.26827459849348984
+    - -0.36702866748761764
+    - 0.7113248916517793
+    - 0.23828561773049342
+    - 0.03432652540955416
+    - 0.34025946727946094
+    - 0.28531207035543704
+    S1_1:
+    - -0.09649184790824059
+    - 0.1052977894063698
+    - 0.5033040238252228
+    - -0.09864540823436115
+    - 0.024793526759238214
+    - 0.4096883806662054
+    - -0.09042732707345019
+    - 0.2685070714866312
+    - 0.4893961468202609
+    - 0.39556832005919373
+    - -0.06993362139647712
+    - 0.08020865403380002
+    - 0.32782216168259903
+    - 0.24860012698784792
+    - 0.3043096144604739
+    - -0.25874456978273264
+    S2_0:
+    - 0.15856108036337146
+    - 0.10163657412535318
+    - -0.013274867472342373
+    - -0.02836355799006108
+    - 0.20765572876490382
+    - 0.1464665666765316
+    - -0.09915214541672644
+    - 0.2077853296865019
+    - 0.17299633853975563
+    - -0.3807398756739415
+    - -0.17794361188672767
+    - 0.03559740967783961
+    - 0.31106578717545985
+    - -0.04363310555351007
+    - 0.22391572485966135
+    - -0.41694511442512666
+    S2_1:
+    - 0.17881645808100588
+    - -0.27324543338690216
+    - -0.18895888188671262
+    - -0.010627338430940672
+    - 0.23476131488462942
+    - 0.18637065655624593
+    - -0.12440810064720499
+    - -0.07789182344991674
+    - -0.20147000889539718
+    - 0.11585799858584915
+    - -0.04478189532595662
+    - 0.30797094679060794
+    - -0.06716345307026243
+    - 0.2725998507491191
+    - 0.24216087014948834
+    - 0.3010562306332405
+    S3_0:
+    - 0.030883086052615
+    - -0.2212256938119991
+    - 0.25042850902938474
+    - 0.09147032129090919
+    - -0.08158392460441746
+    - 0.27235259192662903
+    - 0.05656712005305377
+    - 0.142952905865895
+    - 0.0496871614823835
+    - -0.009958274330925419
+    - -0.20165923721921702
+    - 0.3589971304767987
+    - -0.1310637485524759
+    - -0.14702666789518443
+    - 0.062067028365791324
+    - -0.1207118874499878
+    S3_1:
+    - -0.3833097178022832
+    - -0.10200847741338255
+    - 0.012207574914259318
+    - 0.3153867624011285
+    - 0.013716260361508973
+    - 0.11934754404685197
+    - -0.3106938938688611
+    - -0.11986063186885776
+    - 0.11962739607376686
+    - -0.05133246618477825
+    - 0.21789245234356322
+    - 0.017816962887181112
+    - -0.1467892527437973
+    - -0.12323960814113522
+    - 0.02822701644890232
+    - 0.13860113891222675
+    S4_0:
+    - -0.008598492288739924
+    - -0.2323404518419797
+    - -0.5068844663649428
+    - -0.5301334799685221
+    - -0.1728330888932418
+    - -0.15263313360319414
+    - 0.3552536167466375
+    - 0.37463953559753765
+    - 0.453561680566579
+    - 0.11907200732823454
+    - -0.28315982889808394
+    - -0.48274252138448537
+    - 0.3084792171686807
+    - 0.3468469915071503
+    - -0.009740979727982213
+    - -0.4373498164871042
+    S4_1:
+    - -0.4493472294531174
+    - -0.20240354768738536
+    - 0.23231833116738343
+    - 0.33810966816882165
+    - 0.08143404620340933
+    - -0.14605669341813407
+    - -0.33313061259224785
+    - 0.06566289394804378
+    - 0.09667254873767195
+    - 0.07901429263753816
+    - 0.30876240555951895
+    - 0.1403783825034927
+    - -0.010518707607420276
+    - 0.2919513803779273
+    - -0.31909319846033896
+    - 0.26849778792005796
+validation:
+  acyclic: false
+  start_nodes:
+  - S0
+  end_nodes:
+  - S0
+  invariant_edges: []

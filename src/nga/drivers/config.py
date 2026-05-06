@@ -43,7 +43,7 @@ class Config(BaseModel):
     idf_alpha: float = Field(..., gt=0.0)
     ablation: str = Field(..., pattern=r"^A\d+$")
     dataset: Literal[
-        "mnist", "babyai-synthetic", "babyai", "alfworld", "scienceworld"
+        "mnist", "babyai-synthetic", "babyai", "alfworld", "scienceworld", "dyck-k"
     ]
     seed: int = Field(..., ge=0)
     batch_size: int | None = None

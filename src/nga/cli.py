@@ -590,6 +590,31 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"run_id: {run_id}  output: {output_dir}")
         return 0
 
+    if args.experiment == "E9":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e9_dyck import run_e9
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e9(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E9 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"illegal_no_mask={result.illegal_transition_rate_no_mask:.4f} "
+            f"cycle_revisits={result.n_monodromy_cycle_revisits} "
+            f"mean_depth={result.mean_depth:.2f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
     # Other experiments will land in later phases.
     print(
         f"experiment {args.experiment!r} not yet implemented for Phase 1; "
