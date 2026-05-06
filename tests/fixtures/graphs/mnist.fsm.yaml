@@ -1,0 +1,125 @@
+schema_version: "1.0"
+name: mnist_digit_graph
+vertex_count: 10
+edge_count: 10
+vertices:
+  - id: "0"
+    label: digit_0
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "1"
+    label: digit_1
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "2"
+    label: digit_2
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "3"
+    label: digit_3
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "4"
+    label: digit_4
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "5"
+    label: digit_5
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "6"
+    label: digit_6
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "7"
+    label: digit_7
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "8"
+    label: digit_8
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: "9"
+    label: digit_9
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+edges:
+  - source: "0"
+    target: "1"
+    label: "0_to_1"
+    weight: 1.0
+  - source: "1"
+    target: "2"
+    label: "1_to_2"
+    weight: 1.0
+  - source: "2"
+    target: "3"
+    label: "2_to_3"
+    weight: 1.0
+  - source: "3"
+    target: "4"
+    label: "3_to_4"
+    weight: 1.0
+  - source: "4"
+    target: "5"
+    label: "4_to_5"
+    weight: 1.0
+  - source: "5"
+    target: "6"
+    label: "5_to_6"
+    weight: 1.0
+  - source: "6"
+    target: "7"
+    label: "6_to_7"
+    weight: 1.0
+  - source: "7"
+    target: "8"
+    label: "7_to_8"
+    weight: 1.0
+  - source: "8"
+    target: "9"
+    label: "8_to_9"
+    weight: 1.0
+  - source: "9"
+    target: "0"
+    label: "9_to_0"
+    weight: 1.0
+coordinates:
+  space: hyperbolic
+  dimension: 16
+  node_embeddings:
+    "0": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "1": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "2": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "3": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "4": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "5": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "6": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "7": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "8": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    "9": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+validation:
+  acyclic: false
+  start_nodes: ["0"]
+  end_nodes: ["9"]
+  invariant_edges: []

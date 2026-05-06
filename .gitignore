@@ -1,2 +1,13 @@
-# pixi environments
-.pixi
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+runs/*
+!runs/.gitkeep
+.pixi/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/

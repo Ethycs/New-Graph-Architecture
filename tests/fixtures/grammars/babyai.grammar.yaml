@@ -1,0 +1,45 @@
+schema_version: "1.0"
+name: babyai_cyclic_task_graph
+states:
+  - name: Parse
+    layer: 0
+  - name: Navigate
+    layer: 1
+  - name: ResolveDoor
+    layer: 1
+  - name: Pickup
+    layer: 1
+  - name: Interact
+    layer: 1
+  - name: Deliver
+    layer: 2
+  - name: Done
+    layer: 3
+transitions:
+  - from: Parse
+    to: Navigate
+  - from: Navigate
+    to: Navigate
+  - from: Navigate
+    to: ResolveDoor
+  - from: Navigate
+    to: Pickup
+  - from: Navigate
+    to: Interact
+  - from: ResolveDoor
+    to: Navigate
+  - from: Pickup
+    to: Navigate
+  - from: Interact
+    to: Navigate
+  - from: Pickup
+    to: Deliver
+  - from: Deliver
+    to: Done
+embedding:
+  space: hyperbolic
+  dimension: 16
+validation:
+  acyclic: false
+  start_nodes: [Parse]
+  end_nodes: [Done]

@@ -1,0 +1,14 @@
+schema_version: "1.0"
+grammar_spec_path: ./grammars/babyai-synthetic.grammar.yaml
+graph_fsm_path: ./tests/fixtures/graphs/babyai_synthetic.fsm.yaml
+graph_fsm_source: hand
+group_spec_path: null
+embedding_dim: 32
+temperature: 1.0
+idf_alpha: 1.0
+ablation: A0
+dataset: babyai-synthetic
+seed: 42
+batch_size: 64
+num_epochs: 5
+device: cpu

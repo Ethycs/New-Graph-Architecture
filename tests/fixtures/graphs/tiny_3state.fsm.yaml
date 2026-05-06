@@ -1,0 +1,44 @@
+schema_version: "1.0"
+name: tiny_3state
+vertex_count: 3
+edge_count: 2
+vertices:
+  - id: S
+    label: start
+    layer: 0
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: M
+    label: middle
+    layer: 1
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+  - id: T
+    label: terminal
+    layer: 2
+    w_v: 1.0
+    g_v: 0.1
+    m_v: null
+edges:
+  - source: S
+    target: M
+    label: start_to_middle
+    weight: 1.0
+  - source: M
+    target: T
+    label: middle_to_terminal
+    weight: 1.0
+coordinates:
+  space: hyperbolic
+  dimension: 8
+  node_embeddings:
+    S: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    M: [0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    T: [0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+validation:
+  acyclic: true
+  start_nodes: [S]
+  end_nodes: [T]
+  invariant_edges: []

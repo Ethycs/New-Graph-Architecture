@@ -1,0 +1,102 @@
+schema_version: "1.0"
+ablations:
+  A0:
+    name: "Full system"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A1:
+    name: "No graph mask"
+    graph_mask_enabled: false
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A2:
+    name: "No typed scores"
+    graph_mask_enabled: true
+    typed_scores_enabled: false
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A3:
+    name: "No singularity detector"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: false
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A4:
+    name: "Singularity computed but not routed"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A5:
+    name: "No IDF weighting"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: false
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A6:
+    name: "No hyperbolic geometry"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: false
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A7:
+    name: "No group quotient"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: false
+    reservoir_frozen: true
+    trace_history_enabled: true
+  A8:
+    name: "Reservoir unfrozen"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: false
+    trace_history_enabled: true
+  A9:
+    name: "No trace history"
+    graph_mask_enabled: true
+    typed_scores_enabled: true
+    singularity_detector_enabled: true
+    idf_weighting_enabled: true
+    hyperbolic_geometry_enabled: true
+    group_quotient_enabled: true
+    reservoir_frozen: true
+    trace_history_enabled: false

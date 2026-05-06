@@ -1,0 +1,104 @@
+schema_version: "1.0"
+name: babyai_cyclic_task_graph
+vertex_count: 7
+edge_count: 10
+vertices:
+  - id: Parse
+    label: Parse
+    layer: 0
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+  - id: Navigate
+    label: Navigate
+    layer: 1
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+  - id: ResolveDoor
+    label: ResolveDoor
+    layer: 1
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+  - id: Pickup
+    label: Pickup
+    layer: 1
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+  - id: Interact
+    label: Interact
+    layer: 1
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+  - id: Deliver
+    label: Deliver
+    layer: 2
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+  - id: Done
+    label: Done
+    layer: 3
+    w_v: 1.0
+    g_v: 0.0
+    m_v: null
+edges:
+  - source: Parse
+    target: Navigate
+    label: parse_to_navigate
+    weight: 1.0
+  - source: Navigate
+    target: Navigate
+    label: navigate_self_loop
+    weight: 1.0
+  - source: Navigate
+    target: ResolveDoor
+    label: navigate_to_resolve_door
+    weight: 1.0
+  - source: Navigate
+    target: Pickup
+    label: navigate_to_pickup
+    weight: 1.0
+  - source: Navigate
+    target: Interact
+    label: navigate_to_interact
+    weight: 1.0
+  - source: ResolveDoor
+    target: Navigate
+    label: resolve_door_to_navigate
+    weight: 1.0
+  - source: Pickup
+    target: Navigate
+    label: pickup_to_navigate
+    weight: 1.0
+  - source: Interact
+    target: Navigate
+    label: interact_to_navigate
+    weight: 1.0
+  - source: Pickup
+    target: Deliver
+    label: pickup_to_deliver
+    weight: 1.0
+  - source: Deliver
+    target: Done
+    label: deliver_to_done
+    weight: 1.0
+coordinates:
+  space: hyperbolic
+  dimension: 16
+  node_embeddings:
+    Parse: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Navigate: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    ResolveDoor: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Pickup: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Interact: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Deliver: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    Done: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+validation:
+  acyclic: false
+  start_nodes: [Parse]
+  end_nodes: [Done]
+  invariant_edges: []
