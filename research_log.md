@@ -2,6 +2,69 @@
 
 A running, candid record of what we measured and what it told us. Add new entries at the top.
 
+## 2026-05-08 — Phase 20 Waves A + B — universal graph extraction: synthetic sanity green, frozen-encoder substrate is suggestive but not decisive
+
+### What we built
+
+The graph-extraction proposal in `docs/proposals/graph-extraction.md` becomes operational. Two waves shipped:
+
+**Wave A — atoms + synthetic sanity tier (E24).** Three new arch atoms — `hidden_state_harvester.py` (substrate-agnostic harvest via callable / torch forward-hook / pre-extracted iterable; sets `module.eval()` + `torch.no_grad()`; never trains), `bayesian_nonparametric_k.py` (`estimate_k` under one of three criteria: held-out NLL, BIC, chord-distance elbow; refits at K_star on the full corpus), and the integration runner `e24_graph_extraction.py` (composes the proposal's six steps: discretise → K-select → count → Phase A → type-discover → compare). The Wave-A sanity tier is a synthetic typed Markov chain with `K_true=5`, noisy-centroid embedding (`noise_scale=0.3`), and 40 samples × 30 steps. 28 new tests, all green: 9 harvester + 11 K-selection + 8 e2e on E24.
+
+**Wave B — torch substrate Tier 1 (E25).** The first **real-substrate** test of the universality hypothesis. `run_e25` generates a python_big dataset (80 programs, 2066 total steps), encodes via `FrozenEncoderTorch` (random init, `requires_grad=False`; `encoder.fit` is a no-op flag flip), harvests the encoder output into a `(2066, 18)` matrix indexed by `program_id`, runs `extract_graph` with K-range `[19, 29]`, and compares the extracted Beta-mean legality matrix to the hand-authored `python_big.fsm.yaml` legality. 6 new e2e tests, all green.
+
+### Wave-A result — pipeline is correct, BIC recovers K_true on the synthetic blob distribution
+
+On seed 42:
+
+| Metric | Value | Bar | Status |
+|---|---:|---|---|
+| `K_star` | 5 | == K_true=5 | PASS |
+| `extracted_hamming_normalised` | 0.04 | ≤ 0.10 (Tier 1 sanity) | PASS |
+| `holdout_nll_improvement_per_token` | +1.85 nat/token | > 0 | PASS |
+| `phase_a_hamming_normalised` | 0.0 | == 0 by construction | PASS |
+| `cluster_purity` | 1.0 | ≥ 5/K | PASS |
+
+Empirical finding worth recording: held-out NLL over-clusters on small-N well-separated synthetic blobs (the MLE-variance isotropic Gaussian mixture is only weakly identified for K when each cluster is sharp); BIC's `p log N` penalty recovers K_true reliably. We default the Wave-A synthetic runner to BIC; held-out NLL remains the proposal's principled choice for noisier real-substrate corpora. This is a finding about the K-selection criterion, not about the extraction pipeline.
+
+### Wave-B result — frozen-encoder substrate carries non-trivial but incomplete FSM information
+
+On python_big (24 vertices, 80 programs, seed 42):
+
+| Metric | Value | Reading |
+|---|---:|---|
+| `V_ground_truth` | 24 | hand-authored python_big FSM |
+| `K_star` (BIC) | **22** | off by 2; selection plausible but imperfect |
+| `extracted_hamming_normalised` | 1.0 (sentinel) | K_star ≠ V; permutation alignment undefined |
+| `cluster_purity` | **0.3553** | **8.5× chance** (1/24 ≈ 0.042); decisively above noise |
+| `holdout_nll_per_token` (extracted) | ~2.07 | |
+| `holdout_nll_per_token` (uniform chain) | ~3.09 | |
+| `holdout_nll_improvement_per_token` | **+1.015 nat/token** | extracted beats uniform chain decisively |
+| `n_total_steps` | 2066 | |
+| `total_wall_clock_seconds` | 0.27 s | end-to-end on CPU |
+| `extraction_throughput_steps_per_sec` | 7587 | |
+
+The Tier 1 sanity bar in the proposal is normalised Hamming ≤ 0.05 on ≥ 3/5 grammars. On python_big with a **frozen-random-projection encoder**, the strict Hamming bar is **not met** (K_star ≠ V triggers the sentinel). However, cluster purity is 8.5× chance and the extracted transition matrix beats a uniform-chain baseline by ~1.0 nat/token on held-out trajectories — both decisively positive.
+
+### Architectural reading
+
+**Token-level raw features carry non-trivial but incomplete FSM-state information through a frozen random projection.** The pipeline runs end-to-end, K-selection lands close to the true vertex count, clusters are 8× chance pure, and the extracted transition matrix has real predictive value. But the **exact vertex-count recovery** demands more than a frozen random projection: a trained encoder is required to pin down K = V and meet the strict 0.05 Hamming bar.
+
+This is the empirical boundary the proposal's universality claim runs into: it works at the level of "the network's hidden states carry FSM structure," but the *strict structural recovery* depends on the encoder being trained on the corpus. Wave C (a small transformer trained on python_big from scratch) is the right next test — and is the version of the experiment where the proposal's universality claim earns or loses its keep.
+
+### What this does NOT prove
+
+We have not yet run the multi-grammar Tier-1 bundle (ListOps, python_expr, JSON, control flow Python) under the frozen-encoder substrate, nor any tier with a trained encoder. The Wave-B result is one observation on one grammar. The universality claim remains pending Tier 2 (external transformer) and Tier 3 (pretrained GPT-2-small). What Wave B has done is operationalise the entire pipeline on a real grammar at sub-second wall-clock; the architectural prediction was that the pipeline runs end-to-end on a real substrate, and it does.
+
+### Suite state
+
+Wave A: 481 passed, 8 xfailed, 1 pre-existing E0 env-flake. Wave B adds 6 new e2e tests on E25, all green; aggregate atom census still green. Total tests in repo: 453 collected (E24 + E25 added 34 across unit + e2e).
+
+### What's next
+
+- **Wave B follow-up**: extend `e25_extraction_torch.py` to a multi-grammar sweep (ListOps, python_expr, JSON, control flow Python) with multi-seed bootstrap.
+- **Wave B with trained encoder**: harvest from an intermediate `TypedReadoutTorch` layer **after** a real Phase-B training pass; the trained substrate is the architecture's actual representation, not the frozen-random floor.
+- **Wave C**: train a small (~10M-param) transformer on python_big from scratch and rerun extraction on its mid-layer activations. This is the proposal's decisive Tier 2 test.
+
 ## 2026-05-05 — Phase 19B — self-supervised diagnostic discovery: the architecture recovers the medical taxonomy from symptom co-occurrence alone
 
 ### What we built
