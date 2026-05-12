@@ -1,0 +1,74 @@
+# Diagnostic FSM (Phase 19) -- per-patient tensor-product linearisation of
+# the Kaggle "Disease Prediction from Symptoms" dataset.
+#
+# Each patient's symptom set S is linearised into the sequence
+#
+#     [s_1, s_2, ..., s_|S|, d]
+#
+# where s_i are the patient's TRUE symptoms (in canonical column order) and
+# d is the diagnosis. The token alphabet has 173 entries (132 symptom
+# tokens + 41 diagnosis tokens). Feature vectors are zero-padded to 176
+# dims for symmetry with our usual padding convention.
+#
+# Vertex set (3 states):
+#
+#   OBSERVING_FEW     -- under 3 symptoms observed so far (or no symptoms).
+#                        Legal: any symptom token (-> OBSERVING_FEW or
+#                        OBSERVING_ENOUGH; the walker picks the right one
+#                        based on the running count).
+#                        Diagnosis tokens are ILLEGAL here -- we refuse to
+#                        commit on too little evidence.
+#   OBSERVING_ENOUGH  -- 3+ symptoms observed. The sigma-load-bearing
+#                        decision: BOTH "another symptom" and "commit to
+#                        a diagnosis" are FSM-legal continuations.
+#                        Legal: any symptom token (-> OBSERVING_ENOUGH);
+#                               any diagnosis token (-> DIAGNOSED).
+#   DIAGNOSED         -- terminal. No outgoing edges.
+#
+# Count-conditional transition (the crucial trick)
+# -----------------------------------------------
+# From OBSERVING_FEW, on a symptom token, the FSM has TWO outgoing edges
+# distinguished only by an internal label (SYMPTOM vs SYMPTOM_PROMOTE),
+# one to OBSERVING_FEW and one to OBSERVING_ENOUGH. The walker
+# disambiguates at runtime by the running count of symptoms observed:
+# if count_after_this < 3 -> FEW; else -> ENOUGH. This is the same trick
+# used by the JSON FSM's parent-context disambiguation. The legality
+# matrix is label-agnostic and contains True for both targets.
+#
+# OBSERVING_ENOUGH is the structural-ambiguity site for sigma: BOTH
+# "stay" (more symptoms) and "commit" (diagnose) are legal in real
+# diagnostic medicine; the model has no a priori way to know which a
+# given patient will produce until it sees the next token.
+#
+# Embedding (176-dim, sparse one-hot-ish; not load-bearing).
+schema_version: '1.0'
+name: diagnostic_3state
+vertex_count: 3
+edge_count: 4
+vertices:
+- {id: OBSERVING_FEW, label: OBSERVING_FEW, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: OBSERVING_ENOUGH, label: OBSERVING_ENOUGH, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: DIAGNOSED, label: DIAGNOSED, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+edges:
+# Self-loop on OBSERVING_FEW: count_after < 3 path.
+- {source: OBSERVING_FEW, target: OBSERVING_FEW, label: SYMPTOM, weight: 1.0}
+# Promotion: count_after >= 3 path.
+- {source: OBSERVING_FEW, target: OBSERVING_ENOUGH, label: SYMPTOM_PROMOTE, weight: 1.0}
+# OBSERVING_ENOUGH self-loop: another symptom (count is already >= 3).
+- {source: OBSERVING_ENOUGH, target: OBSERVING_ENOUGH, label: SYMPTOM, weight: 1.0}
+# OBSERVING_ENOUGH -> DIAGNOSED on any diagnosis token (sigma-load-bearing).
+- {source: OBSERVING_ENOUGH, target: DIAGNOSED, label: DIAGNOSIS, weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 176
+  node_embeddings:
+    OBSERVING_FEW: [0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    OBSERVING_ENOUGH: [0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    DIAGNOSED: [0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+validation:
+  acyclic: false
+  start_nodes:
+  - OBSERVING_FEW
+  end_nodes:
+  - DIAGNOSED
+  invariant_edges: []

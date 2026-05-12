@@ -15,6 +15,54 @@ a flat classifier is not.
 Companion to results.jsonl (which is the model-output stream) and
 metrics.jsonl (which is the aggregate stream). decision_trace.jsonl is the
 WHY stream.
+
+Schema 1.1
+----------
+Schema 1.1 is a purely additive bump that makes the
+"all-output-must-be-a-node" commitment first-class on the wire. Where
+schema 1.0 represents a step's output implicitly (via top1_state, mask
+post_argmax, control verdict, etc.), schema 1.1 adds an explicit node-tuple
+identity for the step's output and the transition that produced it.
+
+Existing fields (sigma_total, energy_breakdown, mask, control, ...) become
+*derived diagnostics*: useful for explaining the choice but no longer the
+primary identity of "what was emitted." All previous fields remain present
+and required exactly as in 1.0; the new fields default to None so v1.0
+records validate unchanged.
+
+New fields:
+
+  - ``output_node_tuple``: list[str] | None
+        The node-tuple emitted at this step, one node ID per axis
+        (e.g. ``["q_open", "latent_2", "sigma_low", "energy_mid"]``). The
+        canonical identity of the step's output.
+
+  - ``edge_traversed``: tuple[list[str], list[str]] | None
+        ``(src_node_tuple, dst_node_tuple)`` recording the transition this
+        step represents. ``src`` is the node-tuple BEFORE the step,
+        ``dst`` is the node-tuple AFTER (== ``output_node_tuple`` in the
+        usual case). On JSON the tuple round-trips as a 2-element list of
+        lists; pydantic re-coerces back to a tuple on load.
+
+  - ``mask_version_id``: str | None
+        Short hash (e.g. first 12 chars of a SHA256 over the serialized
+        posterior_mask state) identifying the mask version this step saw.
+        Lets analysts join trace rows against a separate mask snapshot log.
+
+  - ``posterior_summary``: dict[str, float] | None
+        Small summary of the live posterior over axis nodes, e.g.
+        ``{"mean_alpha": 1.7, "mean_beta": 2.3, "mean_entropy": 0.42}``.
+        Optional; runners that don't track a Beta posterior leave None.
+
+  - ``axis_node_ids``: dict[str, str] | None
+        Explicit ``axis_name -> axis_node_id`` map. Redundant with
+        ``output_node_tuple`` (which encodes the same identities by
+        position) but more interpretable in raw JSONL because keys are
+        named. Both should be populated when convenient.
+
+``check_supported`` only enforces SUPPORTED_MAJOR == 1, so both "1.0" and
+"1.1" continue to pass. Runners that populate v1.0 fields only continue
+working without change.
 """
 from __future__ import annotations
 
@@ -29,7 +77,7 @@ from nga.drivers._version import (
 )
 from nga.drivers.jsonl_writer import JsonlWriter, read_jsonl
 
-DECISION_TRACE_SCHEMA_VERSION = "1.0"
+DECISION_TRACE_SCHEMA_VERSION = "1.1"
 
 __all__ = [
     "DECISION_TRACE_SCHEMA_VERSION",
@@ -226,6 +274,45 @@ class DecisionTraceRecord(BaseModel):
     # -- audit -----------------------------------------------------------
     timestamp: str | None = None
     """ISO 8601 UTC wall-clock time at which this record was written."""
+
+    # -- node-tuple commitment (Schema 1.1, additive) -------------------
+    output_node_tuple: list[str] | None = None
+    """The node-tuple emitted at this step (one node ID per axis).
+
+    Canonical identity of the step's output under the all-output-must-be-a-node
+    commitment. ``None`` for v1.0 records or runners that have not adopted the
+    node-tuple convention yet.
+    """
+
+    edge_traversed: tuple[list[str], list[str]] | None = None
+    """``(src_node_tuple, dst_node_tuple)`` for the transition this step represents.
+
+    ``src`` is the node-tuple before the step; ``dst`` is the node-tuple after
+    (typically equal to ``output_node_tuple``). On JSON this serializes as a
+    2-element list of lists and pydantic re-coerces back to a tuple on load.
+    ``None`` for v1.0 records.
+    """
+
+    mask_version_id: str | None = None
+    """Short hash identifying the posterior_mask state this step saw.
+
+    Lets analysts join a trace row against a separate mask-snapshot log.
+    ``None`` for v1.0 records.
+    """
+
+    posterior_summary: dict[str, float] | None = None
+    """Small summary of the live posterior, e.g.
+    ``{"mean_alpha": 1.7, "mean_beta": 2.3, "mean_entropy": 0.42}``.
+
+    Optional; runners that don't track a Beta posterior leave None.
+    """
+
+    axis_node_ids: dict[str, str] | None = None
+    """Explicit ``axis_name -> axis_node_id`` map.
+
+    Redundant with ``output_node_tuple`` (same identities by position) but more
+    interpretable in raw JSONL because keys are named. ``None`` for v1.0 records.
+    """
 
 
 def open_decision_trace_writer(path: Path) -> JsonlWriter[DecisionTraceRecord]:

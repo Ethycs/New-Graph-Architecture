@@ -1,0 +1,14 @@
+schema_version: "1.0"
+grammar_spec_path: ./tests/fixtures/grammars/babyai-synthetic.grammar.yaml
+graph_fsm_path: ./tests/fixtures/graphs/listops.fsm.yaml
+graph_fsm_source: hand
+group_spec_path: ./tests/fixtures/groups/babyai.group.yaml
+embedding_dim: 16
+temperature: 1.0
+idf_alpha: 1.0
+ablation: A0
+dataset: dyck-k  # Config Literal does not include 'listops'; the dataset is selected by experiment dispatch (E15 -> ListOps), not by this label.
+seed: 42
+batch_size: 64
+num_epochs: 5
+device: cpu

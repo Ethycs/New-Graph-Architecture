@@ -1,0 +1,396 @@
+# Python "control" parser FSM (max_paren_depth = 3).
+#
+# Phase 18 Track 2: extends python_big.fsm.yaml with CONTROL FLOW --
+# specifically single-line if/else/while statements. NO indentation /
+# DEDENT gymnastics. Every generated program parses cleanly via stdlib
+# ast.parse.
+#
+# Grammar (subset of real Python; every generated program parses):
+#
+#   program     := stmt+
+#   stmt        := expr_stmt | assign_stmt | def_stmt | if_stmt | while_stmt
+#   expr_stmt   := expr NEWLINE
+#   assign_stmt := NAME '=' expr NEWLINE
+#   def_stmt    := 'def' NAME '(' params ')' ':' return_stmt
+#   params      := empty | NAME (',' NAME)*
+#   return_stmt := 'return' expr NEWLINE
+#   if_stmt     := 'if' cond_atom ':' simple_body ('else' ':' simple_body)?
+#   while_stmt  := 'while' cond_atom ':' simple_body
+#   cond_atom   := NAME | NUMBER          # restricted to keep the FSM regular
+#   simple_body := simple_assign | simple_expr
+#   simple_assign := NAME '=' simple_expr
+#   simple_expr := simple_factor (('+' | '-' | '*' | '/') simple_factor)*
+#   simple_factor := NAME | NUMBER         # NO parens inside if-body
+#                                           # (parens inside while-/else-body
+#                                           # are allowed and re-use the base
+#                                           # depth-1+ machinery)
+#   expr        := term (('+' | '-') term)*
+#   term        := factor (('*' | '/') factor)*
+#   factor      := NUMBER | name_or_call | '(' expr ')'
+#   name_or_call := NAME ('(' args ')')?           # CALL AMBIGUITY (inherited)
+#   args        := empty | expr (',' expr)*
+#
+# Token alphabet (17 token types; feature vectors zero-padded to 22 dims):
+#
+#   NAME, NUMBER, +, -, *, /, (, ), =, NEWLINE,
+#   def, return, ',', ':',
+#   if, else, while                                # NEW
+#
+# Vertex set (37 states). Inherits all 24 from python_big and ADDS 13 control-
+# flow states. Every NEW state lives at depth 0 (we keep parens out of if-body
+# to avoid a state explosion):
+#
+#   # Inherited (24)
+#     START, ACCEPT,
+#     S0_after_name_at_start, S0_after_assign_eq,
+#     S0_after_def_kw, S0_after_def_name, S0_def_param_first,
+#     S0_def_after_param, S0_def_param_after_comma, S0_def_after_close,
+#     S0_def_after_colon, S0_after_return_kw,
+#     S{d}_factor for d in 0..3,
+#     S{d}_after_name_in_factor for d in 0..3,
+#     S{d}_after_term for d in 0..3.
+#
+#   # New (13) -- control-flow scaffolding
+#     S0_after_if_kw           -- consumed 'if'; expects NAME or NUMBER (cond).
+#     S0_after_while_kw        -- consumed 'while'; expects NAME or NUMBER.
+#     S0_after_else_kw         -- consumed 'else'; expects ':'.
+#     S0_if_cond_atom          -- consumed if's NAME/NUMBER condition; expects ':'.
+#     S0_while_cond_atom       -- consumed while's NAME/NUMBER condition; expects ':'.
+#     S0_if_after_colon        -- consumed 'if cond :'; body starts. Dispatches
+#                                  to dedicated body states whose NEWLINE goes
+#                                  to S0_after_if_body (not ACCEPT) so 'else'
+#                                  can follow.
+#     S0_simple_body_start     -- consumed 'while cond :' OR 'else :'. Shared
+#                                  dispatch into the BASE top-level states
+#                                  (NEWLINE -> ACCEPT). NAME -> S0_after_name_at_start;
+#                                  NUMBER -> S0_after_term; '(' -> S1_factor.
+#     S0_after_if_body         -- THE LOAD-BEARING BRANCHING STATE. Just consumed
+#                                  the if-body's NEWLINE. Two+ legal continuations:
+#                                    'else' -> S0_after_else_kw       (take the else)
+#                                    NAME / NUMBER / '(' / 'def' / 'if' / 'while'
+#                                          -> SAME edges as START      (skip else)
+#                                  This is the new sigma-load-bearing site for
+#                                  Phase 18 Track 2: BOTH branches are legal
+#                                  Python; the parser cannot decide which one
+#                                  was meant until it sees the next token.
+#                                  (Note: no NEWLINE edge here -- a blank line
+#                                  inside a program never appears in our generator;
+#                                  a true end-of-program is indicated by walker
+#                                  reaching no more tokens.)
+#     S0_body_after_name_at_start  -- if-body version: NAME at body start; legal
+#                                       next: '=' -> S0_body_after_assign_eq;
+#                                       op -> S0_body_factor;
+#                                       NEWLINE -> S0_after_if_body.
+#     S0_body_after_assign_eq      -- if-body version of S0_after_assign_eq
+#                                       (NEWLINE-bearing path stays in body
+#                                       states). NAME -> S0_body_after_name_in_factor;
+#                                       NUMBER -> S0_body_after_term.
+#     S0_body_factor               -- if-body factor position. NAME or NUMBER only.
+#     S0_body_after_name_in_factor -- if-body NAME-in-factor (no '(' since
+#                                       calls are disallowed in body). op ->
+#                                       S0_body_factor; NEWLINE -> S0_after_if_body.
+#     S0_body_after_term           -- if-body after-term. op -> S0_body_factor;
+#                                       NEWLINE -> S0_after_if_body.
+#
+# Architectural claim
+# --------------------
+# The new sigma-load-bearing site is S0_after_if_body. After the if-body's
+# NEWLINE the parser truly cannot tell whether the next token will be 'else'
+# (continuing the if-stmt) or any of the START-token alternatives (skipping
+# else and starting a new top-level stmt). BOTH continuations are FSM-legal
+# and both are real Python. This is exactly the "branching ambiguity" the
+# detector should latch onto -- a structural cousin of S0_after_name_at_start
+# (assignment-vs-expr) and S{d}_after_name_in_factor (name-vs-call).
+#
+# Pragmatic compromises
+# ---------------------
+# 1. The if/while CONDITION is restricted to a single NAME or NUMBER atom.
+#    A general expr would need duplicated condition-context after-states (so
+#    that the eventual ':' could be reached cleanly); restricting to an atom
+#    keeps the FSM small and the structural claim crisp.
+# 2. The if-body forbids parens. Inside a paren the depth-1+ machinery is
+#    shared with the base FSM, and its closing ')' returns to base
+#    S0_after_term (which would then NEWLINE -> ACCEPT, losing the
+#    else-attachment opportunity). Forbidding '(' in the if-body cleanly
+#    sidesteps this without doubling the state count.
+# 3. The while-body and else-body have NO follow-up keyword (no 'elif' here),
+#    so their body NEWLINE -> ACCEPT, and they happily reuse the base
+#    top-level states (S0_after_name_at_start / S0_after_term / S{d}_factor).
+#
+# Edge counts (target ~150):
+#   Inherited python_big edges: 89.
+#   New control-flow edges:
+#     START -> {S0_after_if_kw, S0_after_while_kw}                       2
+#     S0_after_if_kw -> {S0_if_cond_atom on NAME, S0_if_cond_atom on NUMBER} 2
+#     S0_after_while_kw -> {S0_while_cond_atom on NAME, on NUMBER}        2
+#     S0_after_else_kw -> S0_after_else_colon (':')                       1
+#     S0_if_cond_atom -> S0_if_after_colon (':')                          1
+#     S0_while_cond_atom -> S0_simple_body_start (':')                    1
+#     S0_after_else_kw -> S0_simple_body_start (':')                      1  (replaces above? no -- S0_after_else_kw goes via ':' to S0_simple_body_start direct)
+#     S0_if_after_colon -> {S0_body_after_name_at_start (NAME), S0_body_after_term (NUMBER)} 2
+#     S0_simple_body_start -> {S0_after_name_at_start (NAME),
+#                              S0_after_term (NUMBER),
+#                              S1_factor ('(')}                           3
+#     S0_body_after_name_at_start: '=', '+', '-', '*', '/', NEWLINE       6
+#     S0_body_after_assign_eq: NAME, NUMBER                               2
+#     S0_body_factor: NAME, NUMBER                                        2
+#     S0_body_after_name_in_factor: '+', '-', '*', '/', NEWLINE           5
+#     S0_body_after_term: '+', '-', '*', '/', NEWLINE                     5
+#     S0_after_if_body -> {else (-> S0_after_else_kw), NAME, NUMBER, '(',
+#                          'def', 'if', 'while'}                          7
+#                                                                        ---
+#                                                                       42 + simplified
+#   Plus extending START with two new keyword edges (already counted: 2)
+#   Plus the if-body NEWLINE edges already listed redirect to S0_after_if_body.
+#
+#   Total NEW edges: ~42; Total FSM edges: ~131. (Within target ~150.)
+#
+# Embedding: 22-dim sparse one-hot-ish placeholders (a small non-zero on a
+# distinct coordinate per state); not load-bearing for the dataset generator.
+# 22 dims = alphabet 17 + 5 padding (the dataset feature_dim is also 22).
+schema_version: '1.0'
+name: python_control_d3
+vertex_count: 37
+edge_count: 130
+vertices:
+- {id: START, label: START, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_name_at_start, label: S0_after_name_at_start, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_assign_eq, label: S0_after_assign_eq, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_def_kw, label: S0_after_def_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_def_name, label: S0_after_def_name, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_param_first, label: S0_def_param_first, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_after_param, label: S0_def_after_param, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_param_after_comma, label: S0_def_param_after_comma, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_after_close, label: S0_def_after_close, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_after_colon, label: S0_def_after_colon, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_return_kw, label: S0_after_return_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_factor, label: S0_factor, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_factor, label: S1_factor, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_factor, label: S2_factor, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_factor, label: S3_factor, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_name_in_factor, label: S0_after_name_in_factor, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_after_name_in_factor, label: S1_after_name_in_factor, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_after_name_in_factor, label: S2_after_name_in_factor, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_after_name_in_factor, label: S3_after_name_in_factor, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_term, label: S0_after_term, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_after_term, label: S1_after_term, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_after_term, label: S2_after_term, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_after_term, label: S3_after_term, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_if_kw, label: S0_after_if_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_while_kw, label: S0_after_while_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_else_kw, label: S0_after_else_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_if_cond_atom, label: S0_if_cond_atom, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_while_cond_atom, label: S0_while_cond_atom, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_if_after_colon, label: S0_if_after_colon, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_simple_body_start, label: S0_simple_body_start, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_if_body, label: S0_after_if_body, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_body_after_name_at_start, label: S0_body_after_name_at_start, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_body_after_assign_eq, label: S0_body_after_assign_eq, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_body_factor, label: S0_body_factor, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_body_after_name_in_factor, label: S0_body_after_name_in_factor, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_body_after_term, label: S0_body_after_term, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: ACCEPT, label: ACCEPT, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+edges:
+# START: top-level dispatch (now includes 'if' and 'while').
+- {source: START, target: S0_after_name_at_start, label: NAME, weight: 1.0}
+- {source: START, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: START, target: S1_factor, label: '(', weight: 1.0}
+- {source: START, target: S0_after_def_kw, label: 'def', weight: 1.0}
+- {source: START, target: S0_after_if_kw, label: 'if', weight: 1.0}
+- {source: START, target: S0_after_while_kw, label: 'while', weight: 1.0}
+# S0_after_name_at_start: assignment / CALL / expr-stmt continuation.
+- {source: S0_after_name_at_start, target: S0_after_assign_eq, label: '=', weight: 1.0}
+- {source: S0_after_name_at_start, target: S1_factor, label: '(', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_name_at_start, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S0_after_assign_eq: rhs of '='.
+- {source: S0_after_assign_eq, target: S0_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_after_assign_eq, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_after_assign_eq, target: S1_factor, label: '(', weight: 1.0}
+# Def scaffolding (linear path).
+- {source: S0_after_def_kw, target: S0_after_def_name, label: NAME, weight: 1.0}
+- {source: S0_after_def_name, target: S0_def_param_first, label: '(', weight: 1.0}
+- {source: S0_def_param_first, target: S0_def_after_param, label: NAME, weight: 1.0}
+- {source: S0_def_param_first, target: S0_def_after_close, label: ')', weight: 1.0}
+- {source: S0_def_after_param, target: S0_def_param_after_comma, label: ',', weight: 1.0}
+- {source: S0_def_after_param, target: S0_def_after_close, label: ')', weight: 1.0}
+- {source: S0_def_param_after_comma, target: S0_def_after_param, label: NAME, weight: 1.0}
+- {source: S0_def_after_close, target: S0_def_after_colon, label: ':', weight: 1.0}
+- {source: S0_def_after_colon, target: S0_after_return_kw, label: 'return', weight: 1.0}
+# After 'return': expr starts.
+- {source: S0_after_return_kw, target: S0_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_after_return_kw, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_after_return_kw, target: S1_factor, label: '(', weight: 1.0}
+# S0_factor.
+- {source: S0_factor, target: S0_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_factor, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_factor, target: S1_factor, label: '(', weight: 1.0}
+# S1_factor.
+- {source: S1_factor, target: S1_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S1_factor, target: S1_after_term, label: NUMBER, weight: 1.0}
+- {source: S1_factor, target: S2_factor, label: '(', weight: 1.0}
+- {source: S1_factor, target: S0_after_term, label: ')', weight: 1.0}
+# S2_factor.
+- {source: S2_factor, target: S2_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S2_factor, target: S2_after_term, label: NUMBER, weight: 1.0}
+- {source: S2_factor, target: S3_factor, label: '(', weight: 1.0}
+- {source: S2_factor, target: S1_after_term, label: ')', weight: 1.0}
+# S3_factor: at max_paren_depth, '(' forbidden.
+- {source: S3_factor, target: S3_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S3_factor, target: S3_after_term, label: NUMBER, weight: 1.0}
+- {source: S3_factor, target: S2_after_term, label: ')', weight: 1.0}
+# S0_after_name_in_factor: CALL ambiguity at depth 0.
+- {source: S0_after_name_in_factor, target: S1_factor, label: '(', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_name_in_factor, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S1_after_name_in_factor.
+- {source: S1_after_name_in_factor, target: S2_factor, label: '(', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '+', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '-', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '*', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '/', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S0_after_term, label: ')', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: ',', weight: 1.0}
+# S2_after_name_in_factor.
+- {source: S2_after_name_in_factor, target: S3_factor, label: '(', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '+', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '-', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '*', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '/', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S1_after_term, label: ')', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: ',', weight: 1.0}
+# S3_after_name_in_factor: at max depth, no '('.
+- {source: S3_after_name_in_factor, target: S3_factor, label: '+', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: '-', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: '*', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: '/', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S2_after_term, label: ')', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: ',', weight: 1.0}
+# S0_after_term: top-level after-term.
+- {source: S0_after_term, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_term, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S1_after_term.
+- {source: S1_after_term, target: S1_factor, label: '+', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '-', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '*', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '/', weight: 1.0}
+- {source: S1_after_term, target: S0_after_term, label: ')', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: ',', weight: 1.0}
+# S2_after_term.
+- {source: S2_after_term, target: S2_factor, label: '+', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '-', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '*', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '/', weight: 1.0}
+- {source: S2_after_term, target: S1_after_term, label: ')', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: ',', weight: 1.0}
+# S3_after_term.
+- {source: S3_after_term, target: S3_factor, label: '+', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '-', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '*', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '/', weight: 1.0}
+- {source: S3_after_term, target: S2_after_term, label: ')', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: ',', weight: 1.0}
+# ----- NEW: control-flow scaffolding -----
+# After 'if' / 'while' / 'else' keywords.
+- {source: S0_after_if_kw, target: S0_if_cond_atom, label: NAME, weight: 1.0}
+- {source: S0_after_if_kw, target: S0_if_cond_atom, label: NUMBER, weight: 1.0}
+- {source: S0_after_while_kw, target: S0_while_cond_atom, label: NAME, weight: 1.0}
+- {source: S0_after_while_kw, target: S0_while_cond_atom, label: NUMBER, weight: 1.0}
+- {source: S0_after_else_kw, target: S0_simple_body_start, label: ':', weight: 1.0}
+# Cond-atom -> ':'.
+- {source: S0_if_cond_atom, target: S0_if_after_colon, label: ':', weight: 1.0}
+- {source: S0_while_cond_atom, target: S0_simple_body_start, label: ':', weight: 1.0}
+# If-body dispatch (forbids parens; dedicated body states preserve NEWLINE -> after_if_body).
+- {source: S0_if_after_colon, target: S0_body_after_name_at_start, label: NAME, weight: 1.0}
+- {source: S0_if_after_colon, target: S0_body_after_term, label: NUMBER, weight: 1.0}
+# Simple-body dispatch (while-body / else-body): reuses base depth-0 states.
+- {source: S0_simple_body_start, target: S0_after_name_at_start, label: NAME, weight: 1.0}
+- {source: S0_simple_body_start, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_simple_body_start, target: S1_factor, label: '(', weight: 1.0}
+# If-body internal states (NEWLINE always returns to S0_after_if_body).
+- {source: S0_body_after_name_at_start, target: S0_body_after_assign_eq, label: '=', weight: 1.0}
+- {source: S0_body_after_name_at_start, target: S0_body_factor, label: '+', weight: 1.0}
+- {source: S0_body_after_name_at_start, target: S0_body_factor, label: '-', weight: 1.0}
+- {source: S0_body_after_name_at_start, target: S0_body_factor, label: '*', weight: 1.0}
+- {source: S0_body_after_name_at_start, target: S0_body_factor, label: '/', weight: 1.0}
+- {source: S0_body_after_name_at_start, target: S0_after_if_body, label: NEWLINE, weight: 1.0}
+- {source: S0_body_after_assign_eq, target: S0_body_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_body_after_assign_eq, target: S0_body_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_body_factor, target: S0_body_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_body_factor, target: S0_body_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_body_after_name_in_factor, target: S0_body_factor, label: '+', weight: 1.0}
+- {source: S0_body_after_name_in_factor, target: S0_body_factor, label: '-', weight: 1.0}
+- {source: S0_body_after_name_in_factor, target: S0_body_factor, label: '*', weight: 1.0}
+- {source: S0_body_after_name_in_factor, target: S0_body_factor, label: '/', weight: 1.0}
+- {source: S0_body_after_name_in_factor, target: S0_after_if_body, label: NEWLINE, weight: 1.0}
+- {source: S0_body_after_term, target: S0_body_factor, label: '+', weight: 1.0}
+- {source: S0_body_after_term, target: S0_body_factor, label: '-', weight: 1.0}
+- {source: S0_body_after_term, target: S0_body_factor, label: '*', weight: 1.0}
+- {source: S0_body_after_term, target: S0_body_factor, label: '/', weight: 1.0}
+- {source: S0_body_after_term, target: S0_after_if_body, label: NEWLINE, weight: 1.0}
+# S0_after_if_body: THE LOAD-BEARING BRANCHING STATE.
+# 'else' continues the if-stmt; otherwise we dispatch to the next top-level stmt.
+- {source: S0_after_if_body, target: S0_after_else_kw, label: 'else', weight: 1.0}
+- {source: S0_after_if_body, target: S0_after_name_at_start, label: NAME, weight: 1.0}
+- {source: S0_after_if_body, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_after_if_body, target: S1_factor, label: '(', weight: 1.0}
+- {source: S0_after_if_body, target: S0_after_def_kw, label: 'def', weight: 1.0}
+- {source: S0_after_if_body, target: S0_after_if_kw, label: 'if', weight: 1.0}
+- {source: S0_after_if_body, target: S0_after_while_kw, label: 'while', weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 22
+  node_embeddings:
+    START:                          [0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_name_at_start:         [0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_assign_eq:             [0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_def_kw:                [0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_def_name:              [0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_param_first:             [0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_after_param:             [0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_param_after_comma:       [0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_after_close:             [0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_after_colon:             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_return_kw:             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_factor:                      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S1_factor:                      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S2_factor:                      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0]
+    S3_factor:                      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_name_in_factor:        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0]
+    S1_after_name_in_factor:        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0]
+    S2_after_name_in_factor:        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0]
+    S3_after_name_in_factor:        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0]
+    S0_after_term:                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0]
+    S1_after_term:                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0]
+    S2_after_term:                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10]
+    S3_after_term:                  [0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_if_kw:                 [0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_while_kw:              [0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_else_kw:               [0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_if_cond_atom:                [0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_while_cond_atom:             [0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_if_after_colon:              [0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_simple_body_start:           [0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_if_body:               [0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_body_after_name_at_start:    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_body_after_assign_eq:        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_body_factor:                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_body_after_name_in_factor:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_body_after_term:             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0]
+    ACCEPT:                         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0]
+validation:
+  acyclic: false
+  start_nodes:
+  - START
+  end_nodes:
+  - ACCEPT
+  invariant_edges: []

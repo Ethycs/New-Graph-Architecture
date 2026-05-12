@@ -1,0 +1,494 @@
+# Python expression-subset parser FSM (max_depth = 4).
+#
+# Grammar (subset of real Python; every generated program parses via
+# stdlib ast.parse):
+#
+#   program     := stmt+
+#   stmt        := expr_stmt | assign_stmt
+#   expr_stmt   := expr NEWLINE
+#   assign_stmt := NAME '=' expr NEWLINE
+#   expr        := term (('+' | '-') term)*
+#   term        := factor (('*' | '/') factor)*
+#   factor      := NUMBER | NAME | '(' expr ')'
+#
+# Token alphabet (10 token types -- collapsed identifier / number classes):
+#
+#   NAME, NUMBER, +, -, *, /, (, ), =, NEWLINE
+#
+# State encoding ((depth, expecting); 14 vertices total):
+#
+#   START                       -- initial state at the start of a stmt.
+#   S0_after_name_at_start      -- just consumed a NAME at the start of a stmt.
+#                                  Could be an assignment target ("=" next) or
+#                                  the first factor of an expression statement
+#                                  (operator next, or NEWLINE to terminate).
+#   S0_after_assign_eq          -- just consumed "=" at top-level. Behaves
+#                                  like S0_factor but is kept distinct so the
+#                                  FSM trace records that we are inside an
+#                                  assignment.
+#   S{d}_factor for d in [0, 4] -- expecting a factor at parser depth d. The
+#                                  legal next tokens are NAME, NUMBER, or "("
+#                                  (the latter only when d < 4 = max_depth).
+#   S{d}_after_term for d in [0, 4]
+#                               -- after a factor / closed parenthesised expr.
+#                                  Legal continuations are operators (+ - * /)
+#                                  which descend to S{d}_factor, ")" which
+#                                  pops to S{d-1}_after_term (only when d >= 1),
+#                                  and at d == 0, NEWLINE which terminates the
+#                                  statement and lands in ACCEPT.
+#   ACCEPT                      -- terminal: a complete top-level statement
+#                                  has been parsed.
+#
+# Transition rules (each edge consumes exactly one token):
+#
+#   START                  --NAME-->     S0_after_name_at_start
+#   START                  --NUMBER-->   S0_after_term
+#   START                  --(-->        S1_factor
+#   S0_after_name_at_start --=-->        S0_after_assign_eq
+#   S0_after_name_at_start --+ - * / --> S0_factor (operator -> need next factor)
+#   S0_after_name_at_start --NEWLINE-->  ACCEPT
+#   S0_after_assign_eq     --NAME-->     S0_after_term
+#   S0_after_assign_eq     --NUMBER-->   S0_after_term
+#   S0_after_assign_eq     --(-->        S1_factor
+#   S{d}_factor            --NAME-->     S{d}_after_term
+#   S{d}_factor            --NUMBER-->   S{d}_after_term
+#   S{d}_factor            --(-->        S{d+1}_factor (only when d < 4)
+#   S{d}_after_term        --+ - * / --> S{d}_factor
+#   S{d}_after_term        --)-->        S{d-1}_after_term (only when d >= 1)
+#   S0_after_term          --NEWLINE-->  ACCEPT
+#
+# Architectural claims this lets fire (first time outside synthetic Dyck-k /
+# generated ListOps -- this is real, ast.parse-validated Python source):
+#
+#   * Mask: ")" is illegal at depth 0; "(" is illegal at max depth; NEWLINE
+#     is illegal anywhere except S0_after_term and S0_after_name_at_start;
+#     "=" is legal ONLY at S0_after_name_at_start. State-conditioned in
+#     several distinct ways.
+#   * Hyperbolic: parenthesis nesting depth equals stack depth.
+#   * sigma: at S0_after_name_at_start the parser truly chooses between
+#     starting an assignment ("=") and continuing an expression-statement
+#     (operator or NEWLINE). Genuine structural ambiguity in real Python.
+#   * Monodromy: any matched "(" ... ")" is a closed walk through
+#     S{d}_after_term -> S{d+1}_factor -> ... -> S{d}_after_term.
+#
+# Vertex count: 14
+# Edge count:   51
+#   START:                        3 edges  (NAME, NUMBER, "(")
+#   S0_after_name_at_start:       6 edges  (=, +, -, *, /, NEWLINE)
+#   S0_after_assign_eq:           3 edges  (NAME, NUMBER, "(")
+#   S0_factor:                    3 edges  (NAME, NUMBER, "(")
+#   S1_factor / S2_factor /
+#     S3_factor:                  3 edges each (NAME, NUMBER, "(")  = 9
+#   S4_factor:                    2 edges  (NAME, NUMBER -- "(" forbidden)
+#   S0_after_term:                5 edges  (+, -, *, /, NEWLINE)
+#   S1_after_term / .../
+#     S4_after_term:              5 edges each (+, -, *, /, ")")  = 20
+#   total:                        3 + 6 + 3 + 3 + 9 + 2 + 5 + 20 = 51
+#
+# Embedding: 16-dimensional one-hot-ish placeholders (tiny non-zero on a
+# distinct coordinate per state). Not load-bearing for the dataset
+# generator -- the coordinates block exists to satisfy the GraphFSMSpec
+# schema.
+schema_version: '1.0'
+name: python_expr_d4
+vertex_count: 14
+edge_count: 51
+vertices:
+- id: START
+  label: START
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S0_after_name_at_start
+  label: S0_after_name_at_start
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S0_after_assign_eq
+  label: S0_after_assign_eq
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S0_factor
+  label: S0_factor
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_factor
+  label: S1_factor
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_factor
+  label: S2_factor
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_factor
+  label: S3_factor
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S4_factor
+  label: S4_factor
+  layer: 4
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S0_after_term
+  label: S0_after_term
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_after_term
+  label: S1_after_term
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_after_term
+  label: S2_after_term
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_after_term
+  label: S3_after_term
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S4_after_term
+  label: S4_after_term
+  layer: 4
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: ACCEPT
+  label: ACCEPT
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+edges:
+# START: first token of a statement.
+- {source: START, target: S0_after_name_at_start, label: NAME, weight: 1.0}
+- {source: START, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: START, target: S1_factor, label: '(', weight: 1.0}
+# S0_after_name_at_start: NAME-as-assignment-target OR NAME-as-expression-statement.
+- {source: S0_after_name_at_start, target: S0_after_assign_eq, label: '=', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_name_at_start, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S0_after_assign_eq: rhs of "=" must start with a factor.
+- {source: S0_after_assign_eq, target: S0_after_term, label: NAME, weight: 1.0}
+- {source: S0_after_assign_eq, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_after_assign_eq, target: S1_factor, label: '(', weight: 1.0}
+# S0_factor: top-level continuation after operator.
+- {source: S0_factor, target: S0_after_term, label: NAME, weight: 1.0}
+- {source: S0_factor, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_factor, target: S1_factor, label: '(', weight: 1.0}
+# S1_factor: inside one open paren.
+- {source: S1_factor, target: S1_after_term, label: NAME, weight: 1.0}
+- {source: S1_factor, target: S1_after_term, label: NUMBER, weight: 1.0}
+- {source: S1_factor, target: S2_factor, label: '(', weight: 1.0}
+# S2_factor: inside two open parens.
+- {source: S2_factor, target: S2_after_term, label: NAME, weight: 1.0}
+- {source: S2_factor, target: S2_after_term, label: NUMBER, weight: 1.0}
+- {source: S2_factor, target: S3_factor, label: '(', weight: 1.0}
+# S3_factor: inside three open parens.
+- {source: S3_factor, target: S3_after_term, label: NAME, weight: 1.0}
+- {source: S3_factor, target: S3_after_term, label: NUMBER, weight: 1.0}
+- {source: S3_factor, target: S4_factor, label: '(', weight: 1.0}
+# S4_factor: at max_depth, "(" forbidden.
+- {source: S4_factor, target: S4_after_term, label: NAME, weight: 1.0}
+- {source: S4_factor, target: S4_after_term, label: NUMBER, weight: 1.0}
+# S0_after_term: top level after a factor/term -- operator or end-of-stmt.
+- {source: S0_after_term, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_term, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S1_after_term: inside one paren -- operator or close.
+- {source: S1_after_term, target: S1_factor, label: '+', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '-', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '*', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '/', weight: 1.0}
+- {source: S1_after_term, target: S0_after_term, label: ')', weight: 1.0}
+# S2_after_term: inside two parens.
+- {source: S2_after_term, target: S2_factor, label: '+', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '-', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '*', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '/', weight: 1.0}
+- {source: S2_after_term, target: S1_after_term, label: ')', weight: 1.0}
+# S3_after_term: inside three parens.
+- {source: S3_after_term, target: S3_factor, label: '+', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '-', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '*', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '/', weight: 1.0}
+- {source: S3_after_term, target: S2_after_term, label: ')', weight: 1.0}
+# S4_after_term: inside four parens (max depth).
+- {source: S4_after_term, target: S4_factor, label: '+', weight: 1.0}
+- {source: S4_after_term, target: S4_factor, label: '-', weight: 1.0}
+- {source: S4_after_term, target: S4_factor, label: '*', weight: 1.0}
+- {source: S4_after_term, target: S4_factor, label: '/', weight: 1.0}
+- {source: S4_after_term, target: S3_after_term, label: ')', weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 16
+  node_embeddings:
+    START:
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S0_after_name_at_start:
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S0_after_assign_eq:
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S0_factor:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S1_factor:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S2_factor:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S3_factor:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S4_factor:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S0_after_term:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S1_after_term:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S2_after_term:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S3_after_term:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S4_after_term:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    ACCEPT:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+validation:
+  acyclic: false
+  start_nodes:
+  - START
+  end_nodes:
+  - ACCEPT
+  invariant_edges: []

@@ -37,7 +37,7 @@ from nga.drivers import seeding
 # Public helpers
 # ---------------------------------------------------------------------------
 
-EXPERIMENT_CHOICES: list[str] = [f"E{i}" for i in range(10)]
+EXPERIMENT_CHOICES: list[str] = [f"E{i}" for i in range(24)]
 ABLATION_PATTERN = re.compile(r"^A\d+$")
 
 
@@ -75,7 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         required=True,
         choices=EXPERIMENT_CHOICES,
-        help="Experiment identifier (E0 through E9).",
+        help="Experiment identifier (E0 through E23).",
     )
     parser.add_argument(
         "--ablation",
@@ -611,6 +611,402 @@ def main(argv: Optional[list[str]] = None) -> int:
             f"illegal_no_mask={result.illegal_transition_rate_no_mask:.4f} "
             f"cycle_revisits={result.n_monodromy_cycle_revisits} "
             f"mean_depth={result.mean_depth:.2f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E10":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e10_unified_world_model import run_e10
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e10(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E10 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"hamming_norm={result.hamming_normalised:.4f} "
+            f"mono_loss={result.monodromy_consistency_loss:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E11":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e11_kl_world_model import run_e11
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e11(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E11 result: accuracy={result.accuracy:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"crb_sat={result.crb_satisfied_fraction:.4f} "
+            f"kl_progress={result.kl_progress_final:.4f} "
+            f"mean_kl_surprise={result.mean_kl_surprise:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E12":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e12_torch_world_model import run_e12
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e12(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E12 result: accuracy={result.accuracy:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"torch_trainable={result.n_torch_trainable_params} "
+            f"torch_frozen={result.n_torch_frozen_params}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E13":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e13_listops import run_e13
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e13(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E13 result: accuracy={result.accuracy:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"mean_parse_depth={result.mean_parse_depth:.2f} "
+            f"sigma_boundary={result.mean_sigma_at_operator_boundary:.4f} "
+            f"sigma_non_boundary={result.mean_sigma_at_non_boundary:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E14":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e14_torch_native import run_e14
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e14(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E14 result: accuracy={result.accuracy:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"sigma_auroc={result.sigma_auroc:.4f} "
+            f"margin_auroc={result.margin_auroc:.4f} "
+            f"sigma_uplift={result.sigma_uplift:+.4f} "
+            f"torch_trainable={result.n_torch_trainable_params} "
+            f"final_loss={result.final_loss:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E15":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e15_maturity_sweep import run_e15
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e15(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        cp_table = " ".join(
+            f"ep{cm.epoch}:fail_uplift={cm.sigma_failure_uplift:+.4f}/struct_uplift={cm.sigma_structural_uplift:+.4f}"
+            for cm in result.checkpoint_metrics
+        )
+        print(
+            f"E15 result: phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"final_loss={result.final_loss:.4f} "
+            f"checkpoints=[{cp_table}]"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E16":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e16_no_phase_a import run_e16
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e16(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        cp_table = " ".join(
+            f"ep{cm.epoch}:fail_uplift={cm.sigma_failure_uplift:+.4f}"
+            f"/struct_uplift={cm.sigma_structural_uplift:+.4f}"
+            for cm in result.checkpoint_metrics
+        )
+        print(
+            f"E16 result: phase_a_disabled={result.phase_a_disabled:.1f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"final_loss={result.final_loss:.4f} "
+            f"checkpoints=[{cp_table}]"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E17":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e17_python_expr import run_e17
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e17(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E17 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"sigma_uplift={result.sigma_uplift:+.4f} "
+            f"sigma_struct_uplift={result.sigma_structural_uplift:+.4f} "
+            f"sigma_boundary={result.mean_sigma_at_operator_boundary:.4f} "
+            f"sigma_non_boundary={result.mean_sigma_at_non_boundary:.4f} "
+            f"mean_depth={result.mean_program_depth:.2f} "
+            f"final_loss={result.final_loss:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E18":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e18_python_big import run_e18
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e18(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E18 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"sigma_uplift={result.sigma_uplift:+.4f} "
+            f"sigma_struct_uplift={result.sigma_structural_uplift:+.4f} "
+            f"sigma_boundary={result.mean_sigma_at_operator_boundary:.4f} "
+            f"sigma_non_boundary={result.mean_sigma_at_non_boundary:.4f} "
+            f"mean_depth={result.mean_program_depth:.2f} "
+            f"final_loss={result.final_loss:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E19":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e19_json import run_e19
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e19(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E19 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"sigma_uplift={result.sigma_uplift:+.4f} "
+            f"sigma_struct_uplift={result.sigma_structural_uplift:+.4f} "
+            f"sigma_boundary={result.mean_sigma_at_operator_boundary:.4f} "
+            f"sigma_non_boundary={result.mean_sigma_at_non_boundary:.4f} "
+            f"mean_depth={result.mean_program_depth:.2f} "
+            f"final_loss={result.final_loss:.4f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E20":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e20_sigma_transfer import run_e20
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e20(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E20 result: accuracy={result.accuracy:.4f} "
+            f"sigma_default={result.sigma_auroc_default:.4f} "
+            f"sigma_transferred={result.sigma_auroc_transferred:.4f} "
+            f"transfer_lift={result.transfer_lift:+.4f} "
+            f"phase0_s={result.phase0_wall_clock_seconds:.2f} "
+            f"phase1_s={result.phase1_wall_clock_seconds:.2f} "
+            f"total_s={result.total_wall_clock_seconds:.2f} "
+            f"throughput={result.inference_throughput_samples_per_sec:.1f} "
+            f"peak_mem_kb={result.peak_memory_kb:.0f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E21":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e21_python_control import run_e21
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e21(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E21 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"sigma_uplift={result.sigma_uplift:+.4f} "
+            f"sigma_struct_uplift={result.sigma_structural_uplift:+.4f} "
+            f"sigma_boundary={result.mean_sigma_at_operator_boundary:.4f} "
+            f"sigma_non_boundary={result.mean_sigma_at_non_boundary:.4f} "
+            f"mean_depth={result.mean_program_depth:.2f} "
+            f"final_loss={result.final_loss:.4f} "
+            f"phase_a_s={result.phase_a_wall_clock_seconds:.2f} "
+            f"phase_b_s={result.phase_b_wall_clock_seconds:.2f} "
+            f"total_s={result.total_wall_clock_seconds:.2f} "
+            f"throughput={result.inference_throughput_samples_per_sec:.1f} "
+            f"peak_mem_kb={result.peak_memory_kb:.0f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E22":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e22_diagnostic import run_e22
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e22(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E22 result: accuracy={result.accuracy:.4f} "
+            f"no_mask={result.accuracy_no_mask:.4f} "
+            f"uplift={result.mask_accuracy_uplift:+.4f} "
+            f"illegal_rate={result.illegal_transition_rate:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"phase_b_hamming={result.phase_b_hamming_normalised:.4f} "
+            f"sigma_uplift={result.sigma_uplift:+.4f} "
+            f"sigma_struct_uplift={result.sigma_structural_uplift:+.4f} "
+            f"sigma_boundary={result.mean_sigma_at_operator_boundary:.4f} "
+            f"sigma_non_boundary={result.mean_sigma_at_non_boundary:.4f} "
+            f"diagnostic_accuracy={result.diagnostic_accuracy:.4f} "
+            f"mean_symptoms={result.mean_symptoms_observed_before_diagnosis:.2f} "
+            f"final_loss={result.final_loss:.4f} "
+            f"phase_a_s={result.phase_a_wall_clock_seconds:.2f} "
+            f"phase_b_s={result.phase_b_wall_clock_seconds:.2f} "
+            f"total_s={result.total_wall_clock_seconds:.2f} "
+            f"throughput={result.inference_throughput_samples_per_sec:.1f} "
+            f"peak_mem_kb={result.peak_memory_kb:.0f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E23":
+        from nga.arch.graph_fsm import GraphFSM
+        from nga.exp.e23_diagnostic_unsup import run_e23
+
+        fsm = GraphFSM(fsm_spec)
+        result = run_e23(
+            config=merged_config,
+            ablation=ablation_tuple,
+            fsm=fsm,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E23 result: "
+            f"purity_K20={result.cluster_purity_K20:.4f} "
+            f"purity_K41={result.cluster_purity_K41:.4f} "
+            f"purity_K80={result.cluster_purity_K80:.4f} "
+            f"ari_K41={result.adjusted_rand_index_K41:.4f} "
+            f"nmi_K41={result.normalized_mutual_info_K41:.4f} "
+            f"phase_a_hamming_K41={result.phase_a_hamming_normalised_K41:.4f} "
+            f"sigma_hardness_auroc_K41={result.sigma_hardness_auroc_K41:.4f} "
+            f"n_patients={result.n_patients} "
+            f"phase_1_s={result.phase_1_wall_clock_seconds:.2f} "
+            f"phase_2_s={result.phase_2_wall_clock_seconds:.2f} "
+            f"phase_3_s={result.phase_3_wall_clock_seconds:.2f} "
+            f"total_s={result.total_wall_clock_seconds:.2f} "
+            f"throughput={result.inference_throughput_samples_per_sec:.1f} "
+            f"peak_mem_kb={result.peak_memory_kb:.0f}"
         )
         print(f"run_id: {run_id}  output: {output_dir}")
         return 0

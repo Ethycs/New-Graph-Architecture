@@ -1,0 +1,341 @@
+# Python "big" parser FSM (max_paren_depth = 3).
+#
+# Phase 14 Wave II: extends python_expr.fsm.yaml from arithmetic + assignment
+# to include CALLS, DEFS, and RETURNS. Single-line def bodies only (no
+# indentation) so ast.parse accepts every program without INDENT/DEDENT.
+#
+# Grammar (subset of real Python; every generated program parses via
+# stdlib ast.parse):
+#
+#   program     := stmt+
+#   stmt        := expr_stmt | assign_stmt | def_stmt        # NO top-level return
+#   expr_stmt   := expr NEWLINE
+#   assign_stmt := NAME '=' expr NEWLINE
+#   def_stmt    := 'def' NAME '(' params ')' ':' return_stmt # single-line body
+#   params      := empty | NAME (',' NAME)*
+#   return_stmt := 'return' expr NEWLINE
+#   expr        := term (('+' | '-') term)*
+#   term        := factor (('*' | '/') factor)*
+#   factor      := NUMBER | name_or_call | '(' expr ')'
+#   name_or_call := NAME ('(' args ')')?                     # CALL AMBIGUITY
+#   args        := empty | expr (',' expr)*
+#
+# Token alphabet (14 token types -- collapsed identifier / number classes;
+# feature vectors are zero-padded to 18 dims for parity with ListOps):
+#
+#   NAME, NUMBER, +, -, *, /, (, ), =, NEWLINE,
+#   def, return, ',', ':'
+#
+# Vertex set (24 states). Depth d ranges over [0, 3]; max_paren_depth=3 means
+# at d=3 we cannot open another '('.
+#
+#   START
+#   ACCEPT
+#
+#   # Top-level statement scaffolding
+#   S0_after_name_at_start      -- consumed NAME as first token of a stmt;
+#                                  could be assignment target ('='), CALL ('('),
+#                                  expression-stmt continuation (op or NEWLINE).
+#                                  This is the structural-ambiguity hot-spot
+#                                  shared with python_expr -- now extended
+#                                  with a '(' edge for top-level CALLS.
+#   S0_after_assign_eq          -- just consumed '=' at top-level; rhs starts.
+#
+#   # Def-stmt scaffolding (linear path)
+#   S0_after_def_kw             -- consumed 'def'; expects function NAME.
+#   S0_after_def_name           -- consumed def's NAME; expects '('.
+#   S0_def_param_first          -- consumed def's '('; expects NAME or ')'.
+#   S0_def_after_param          -- consumed a param NAME; expects ',' or ')'.
+#   S0_def_param_after_comma    -- consumed ',' in params; expects NAME.
+#                                  (No trailing comma allowed -- we don't
+#                                  generate it; ast.parse would accept but
+#                                  the FSM is stricter here for clarity.)
+#   S0_def_after_close          -- consumed ')'; expects ':'.
+#   S0_def_after_colon          -- consumed ':'; expects 'return' (single-line
+#                                  bodies only).
+#   S0_after_return_kw          -- consumed 'return'; expects an expr to start.
+#
+#   # Factor states: expecting a factor at depth d.
+#   S{d}_factor for d in 0..3   -- legal next tokens are NAME, NUMBER, or '('
+#                                  (latter only when d < 3 = max_paren_depth).
+#
+#   # Call-ambiguity hot-spot.
+#   S{d}_after_name_in_factor for d in 0..3
+#                               -- just consumed a NAME inside factor at depth d.
+#                                  THIS IS THE NEW SIGMA SITE: the FSM has
+#                                  TWO+ outgoing branches:
+#                                    '(' -> S{d+1}_factor    (it's a CALL)
+#                                    op  -> S{d}_factor      (variable, op next)
+#                                    ')' -> S{d-1}_after_term (close enclosing)
+#                                    ',' -> S{d}_factor       (next call arg)
+#                                    NEWLINE -> ACCEPT (only at d=0)
+#                                  The mask is identical to S{d}_after_term
+#                                  PLUS the '(' (call) edge. Distinguishing
+#                                  these two states tracks WHERE the
+#                                  call-ambiguity decision was actually made.
+#
+#   # Standard after-term states (same as python_expr).
+#   S{d}_after_term for d in 0..3
+#                               -- after a fully-formed factor (e.g. NUMBER,
+#                                  ')', or after-call). Operator descends to
+#                                  S{d}_factor; ')' pops to S{d-1}_after_term;
+#                                  at d=0, NEWLINE terminates the stmt.
+#                                  At d>=1, ',' is legal (parses next call arg).
+#
+# Pragmatic compromise (call-args vs parens conflation)
+# -----------------------------------------------------
+# The FSM does NOT distinguish "(" opening a call's arg list from "(" opening
+# a parenthesised sub-expression: both descend to S{d+1}_factor. As a result,
+# ',' is accepted at any S{d}_after_term / S{d}_after_name_in_factor for d>=1
+# (treated as "next call arg" by the FSM). This means a literal "(a, b)" as
+# a parenthesised tuple expression would be accepted by the FSM, even though
+# our grammar forbids tuple literals. The generator never produces such
+# strings -- it only produces ',' inside calls -- so the FSM trace stays
+# inside the grammar's true language. This compromise keeps the FSM regular
+# (no stack of call-vs-parens contexts) while still firing the call-ambiguity
+# sigma decision at every NAME-in-factor.
+#
+# The interaction between S{d}_after_name_in_factor and S{d}_after_term
+# ---------------------------------------------------------------------
+# A NAME in a factor position lands in S{d}_after_name_in_factor (NOT directly
+# in S{d}_after_term). A NUMBER in a factor position lands directly in
+# S{d}_after_term. Why the asymmetry? Because only a NAME can be followed by
+# '(' to form a call -- a NUMBER cannot. So the call edge is exclusive to
+# S{d}_after_name_in_factor; from S{d}_after_term, '(' is illegal. Once the
+# NAME's call-or-not decision has fired (via consuming '(' or any non-paren
+# continuation), the trajectory rejoins the standard after-term flow:
+#   - Operator from S{d}_after_name_in_factor goes to S{d}_factor (same as
+#     S{d}_after_term -> S{d}_factor on operator).
+#   - ')' from S{d}_after_name_in_factor goes to S{d-1}_after_term (same as
+#     S{d}_after_term -> S{d-1}_after_term on ')').
+#   - NEWLINE from S0_after_name_in_factor lands in ACCEPT (same as
+#     S0_after_term -> ACCEPT).
+#   - ',' from S{d}_after_name_in_factor goes to S{d}_factor (same as
+#     S{d}_after_term -> S{d}_factor on ',').
+# So S{d}_after_name_in_factor IS S{d}_after_term plus one extra '(' edge.
+# The two states are kept distinct because the masking pattern at the two
+# is different: the runtime can read off "which NAME-in-factor decisions
+# were taken as calls vs as variables" from the trajectory, which is
+# precisely the data the sigma discriminator should latch onto.
+#
+# Architectural claims this lets fire (over and above python_expr):
+#   * Sigma at S{d}_after_name_in_factor: REAL choice between '(' (call) and
+#     anything else (variable). Both alternatives are legal Python and
+#     genuinely ambiguous without lookahead.
+#   * Mask: 'def' is legal ONLY at START. ':' is legal ONLY at S0_def_after_close.
+#     'return' is legal ONLY at S0_def_after_colon. ',' is illegal at depth 0.
+#   * Hyperbolic depth: parenthesis nesting still equals stack depth (same
+#     as python_expr); calls open a new paren level just like sub-expressions.
+#   * Monodromy: any matched call f(...) is a closed walk
+#     S{d}_after_name_in_factor -> S{d+1}_factor -> ... -> S{d}_after_term
+#     (the call's open paren and its matching close paren cancel).
+#
+# Edge counts (89 total):
+#   START:                       4  (NAME, NUMBER, '(', def)
+#   S0_after_name_at_start:      7  ('=', '(', +, -, *, /, NEWLINE)
+#   S0_after_assign_eq:          3  (NAME, NUMBER, '(')
+#   S0_after_def_kw:             1  (NAME)
+#   S0_after_def_name:           1  ('(')
+#   S0_def_param_first:          2  (NAME, ')')
+#   S0_def_after_param:          2  (',', ')')
+#   S0_def_param_after_comma:    1  (NAME)
+#   S0_def_after_close:          1  (':')
+#   S0_def_after_colon:          1  ('return')
+#   S0_after_return_kw:          3  (NAME, NUMBER, '(')
+#   S0_factor:                   3  (NAME, NUMBER, '(')
+#   S1_factor:                   4  (NAME, NUMBER, '(', ')' for empty call args)
+#   S2_factor:                   4
+#   S3_factor:                   3  (NAME, NUMBER, ')' -- '(' forbidden at max depth)
+#   S0_after_name_in_factor:     6  ('(', +, -, *, /, NEWLINE)
+#   S1_after_name_in_factor:     7  ('(', +, -, *, /, ')', ',')
+#   S2_after_name_in_factor:     7
+#   S3_after_name_in_factor:     6  (no '(' at max depth: +, -, *, /, ')', ',')
+#   S0_after_term:               5  (+, -, *, /, NEWLINE)
+#   S1_after_term:               6  (+, -, *, /, ')', ',')
+#   S2_after_term:               6
+#   S3_after_term:               6
+#   total:                       89
+#
+# (The ')' edges from S{d}_factor at d>=1 enable empty call argument lists
+# such as ``f()``: after consuming '(' the FSM lands in S{d+1}_factor and
+# the very next token can be ')' to close the empty list. As a side effect
+# the FSM accepts ``()`` as a parenthesised expression -- our generator
+# never produces this, so the trace stays inside the grammar's true
+# language even though the FSM is slightly more permissive.)
+#
+# Embedding: 18-dim sparse one-hot-ish placeholders (a tiny non-zero on a
+# distinct coordinate per state). Not load-bearing for the dataset
+# generator -- the coordinates block exists to satisfy the GraphFSMSpec
+# schema. 18 dims = alphabet 14 + 4 padding (the dataset feature_dim is also
+# 18 for parity).
+schema_version: '1.0'
+name: python_big_d3
+vertex_count: 24
+edge_count: 89
+vertices:
+- {id: START, label: START, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_name_at_start, label: S0_after_name_at_start, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_assign_eq, label: S0_after_assign_eq, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_def_kw, label: S0_after_def_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_def_name, label: S0_after_def_name, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_param_first, label: S0_def_param_first, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_after_param, label: S0_def_after_param, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_param_after_comma, label: S0_def_param_after_comma, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_after_close, label: S0_def_after_close, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_def_after_colon, label: S0_def_after_colon, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_return_kw, label: S0_after_return_kw, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_factor, label: S0_factor, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_factor, label: S1_factor, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_factor, label: S2_factor, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_factor, label: S3_factor, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_name_in_factor, label: S0_after_name_in_factor, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_after_name_in_factor, label: S1_after_name_in_factor, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_after_name_in_factor, label: S2_after_name_in_factor, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_after_name_in_factor, label: S3_after_name_in_factor, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S0_after_term, label: S0_after_term, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_after_term, label: S1_after_term, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_after_term, label: S2_after_term, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_after_term, label: S3_after_term, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: ACCEPT, label: ACCEPT, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+edges:
+# START: top-level dispatch.
+- {source: START, target: S0_after_name_at_start, label: NAME, weight: 1.0}
+- {source: START, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: START, target: S1_factor, label: '(', weight: 1.0}
+- {source: START, target: S0_after_def_kw, label: 'def', weight: 1.0}
+# S0_after_name_at_start: assignment ('='), CALL ('('), expr-stmt (op/NEWLINE).
+- {source: S0_after_name_at_start, target: S0_after_assign_eq, label: '=', weight: 1.0}
+- {source: S0_after_name_at_start, target: S1_factor, label: '(', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_name_at_start, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_name_at_start, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S0_after_assign_eq: rhs of '='.
+- {source: S0_after_assign_eq, target: S0_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_after_assign_eq, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_after_assign_eq, target: S1_factor, label: '(', weight: 1.0}
+# Def scaffolding (linear path).
+- {source: S0_after_def_kw, target: S0_after_def_name, label: NAME, weight: 1.0}
+- {source: S0_after_def_name, target: S0_def_param_first, label: '(', weight: 1.0}
+- {source: S0_def_param_first, target: S0_def_after_param, label: NAME, weight: 1.0}
+- {source: S0_def_param_first, target: S0_def_after_close, label: ')', weight: 1.0}
+- {source: S0_def_after_param, target: S0_def_param_after_comma, label: ',', weight: 1.0}
+- {source: S0_def_after_param, target: S0_def_after_close, label: ')', weight: 1.0}
+- {source: S0_def_param_after_comma, target: S0_def_after_param, label: NAME, weight: 1.0}
+- {source: S0_def_after_close, target: S0_def_after_colon, label: ':', weight: 1.0}
+- {source: S0_def_after_colon, target: S0_after_return_kw, label: 'return', weight: 1.0}
+# After 'return': expr starts (same dispatch as S0_after_assign_eq).
+- {source: S0_after_return_kw, target: S0_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_after_return_kw, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_after_return_kw, target: S1_factor, label: '(', weight: 1.0}
+# S0_factor.
+- {source: S0_factor, target: S0_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S0_factor, target: S0_after_term, label: NUMBER, weight: 1.0}
+- {source: S0_factor, target: S1_factor, label: '(', weight: 1.0}
+# S1_factor. ')' is legal here for empty call args ``f()``.
+- {source: S1_factor, target: S1_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S1_factor, target: S1_after_term, label: NUMBER, weight: 1.0}
+- {source: S1_factor, target: S2_factor, label: '(', weight: 1.0}
+- {source: S1_factor, target: S0_after_term, label: ')', weight: 1.0}
+# S2_factor.
+- {source: S2_factor, target: S2_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S2_factor, target: S2_after_term, label: NUMBER, weight: 1.0}
+- {source: S2_factor, target: S3_factor, label: '(', weight: 1.0}
+- {source: S2_factor, target: S1_after_term, label: ')', weight: 1.0}
+# S3_factor: at max_paren_depth, '(' forbidden.
+- {source: S3_factor, target: S3_after_name_in_factor, label: NAME, weight: 1.0}
+- {source: S3_factor, target: S3_after_term, label: NUMBER, weight: 1.0}
+- {source: S3_factor, target: S2_after_term, label: ')', weight: 1.0}
+# S0_after_name_in_factor: CALL ambiguity at depth 0.
+- {source: S0_after_name_in_factor, target: S1_factor, label: '(', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_name_in_factor, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_name_in_factor, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S1_after_name_in_factor: CALL ambiguity at depth 1.
+- {source: S1_after_name_in_factor, target: S2_factor, label: '(', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '+', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '-', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '*', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: '/', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S0_after_term, label: ')', weight: 1.0}
+- {source: S1_after_name_in_factor, target: S1_factor, label: ',', weight: 1.0}
+# S2_after_name_in_factor.
+- {source: S2_after_name_in_factor, target: S3_factor, label: '(', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '+', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '-', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '*', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: '/', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S1_after_term, label: ')', weight: 1.0}
+- {source: S2_after_name_in_factor, target: S2_factor, label: ',', weight: 1.0}
+# S3_after_name_in_factor: at max depth, no '('.
+- {source: S3_after_name_in_factor, target: S3_factor, label: '+', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: '-', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: '*', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: '/', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S2_after_term, label: ')', weight: 1.0}
+- {source: S3_after_name_in_factor, target: S3_factor, label: ',', weight: 1.0}
+# S0_after_term: top-level after-term.
+- {source: S0_after_term, target: S0_factor, label: '+', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '-', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '*', weight: 1.0}
+- {source: S0_after_term, target: S0_factor, label: '/', weight: 1.0}
+- {source: S0_after_term, target: ACCEPT, label: NEWLINE, weight: 1.0}
+# S1_after_term: depth 1.
+- {source: S1_after_term, target: S1_factor, label: '+', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '-', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '*', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: '/', weight: 1.0}
+- {source: S1_after_term, target: S0_after_term, label: ')', weight: 1.0}
+- {source: S1_after_term, target: S1_factor, label: ',', weight: 1.0}
+# S2_after_term: depth 2.
+- {source: S2_after_term, target: S2_factor, label: '+', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '-', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '*', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: '/', weight: 1.0}
+- {source: S2_after_term, target: S1_after_term, label: ')', weight: 1.0}
+- {source: S2_after_term, target: S2_factor, label: ',', weight: 1.0}
+# S3_after_term: depth 3.
+- {source: S3_after_term, target: S3_factor, label: '+', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '-', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '*', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: '/', weight: 1.0}
+- {source: S3_after_term, target: S2_after_term, label: ')', weight: 1.0}
+- {source: S3_after_term, target: S3_factor, label: ',', weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 18
+  node_embeddings:
+    START:                    [0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_name_at_start:   [0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_assign_eq:       [0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_def_kw:          [0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_def_name:        [0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_param_first:       [0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_after_param:       [0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_param_after_comma: [0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_after_close:       [0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_def_after_colon:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_return_kw:       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0, 0]
+    S0_factor:                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0, 0]
+    S1_factor:                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0, 0]
+    S2_factor:                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0, 0]
+    S3_factor:                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0, 0]
+    S0_after_name_in_factor:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0, 0]
+    S1_after_name_in_factor:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10, 0]
+    S2_after_name_in_factor:  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.10]
+    S3_after_name_in_factor:  [0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S0_after_term:            [0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S1_after_term:            [0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S2_after_term:            [0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    S3_after_term:            [0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    ACCEPT:                   [0, 0, 0, 0, 0, 0, 0.05, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+validation:
+  acyclic: false
+  start_nodes:
+  - START
+  end_nodes:
+  - ACCEPT
+  invariant_edges: []

@@ -1,0 +1,443 @@
+# ListOps parser FSM (Nangia & Bowman 2018-style nested operator expressions).
+#
+# Grammar (max_depth = 3):
+#   expr         := digit | "[" op operand_list "]"
+#   op           := MAX | MIN | MED | SUM_MOD
+#   operand_list := expr (operand_list)?     # one or more operands
+#   digit        := 0 | 1 | ... | 9
+#
+# Token alphabet (16 tokens):
+#   "[", "]", MAX, MIN, MED, SUM_MOD, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+#
+# State encoding (11 states, max_depth = 3):
+#
+#   START                -- initial state; expects either a top-level digit
+#                           (-> ACCEPT) or "[" (-> S1_op).
+#   S{d}_op              -- just consumed "["; expects an operator (one of
+#                           MAX/MIN/MED/SUM_MOD). 1 <= d <= 3.
+#   S{d}_need_operand    -- just consumed an operator; the next token must be
+#                           an expression (digit -> S{d}_after_operand, "[" ->
+#                           S{d+1}_op when d < max_depth). 1 <= d <= 3.
+#   S{d}_after_operand   -- produced >= 1 operand at depth d; legal next is
+#                           EITHER another operand (continue operand_list) OR
+#                           a closing "]" which pops to S{d-1}_after_operand
+#                           (or ACCEPT if d == 1). 1 <= d <= 3.
+#   ACCEPT               -- terminal: a top-level expression has been parsed.
+#
+# Transition rules (each edge consumes one token; no self-loops):
+#   START          --digit--> ACCEPT              (10 edges)
+#   START          --"["--> S1_op                 (1 edge)
+#   S{d}_op        --op   --> S{d}_need_operand   (4 edges per d)
+#   S{d}_need     --digit-> S{d}_after_operand    (10 edges per d)
+#   S{d}_need     --"["  -> S{d+1}_op             (1 edge if d < max_depth)
+#   S{d}_after    --digit-> S{d}_after_operand    (10 edges per d; self at d
+#                                                  on the (state, state) axis
+#                                                  but a fresh transition that
+#                                                  consumes a token; the FSM
+#                                                  edge IS a self-loop on the
+#                                                  state axis but not on the
+#                                                  token axis)
+#   S{d}_after    --"["  -> S{d+1}_op             (1 edge if d < max_depth)
+#   S{d}_after    --"]"  -> S{d-1}_after_operand  (1 edge if d > 1)
+#   S1_after      --"]"  -> ACCEPT                (1 edge)
+#
+# Architectural claims this lets fire (better than Dyck-k because real grammar):
+#   * Mask: closing "]" is only legal when depth >= 1 AND the parser has
+#     produced >= 1 operand; opening "[" is illegal at max_depth.
+#   * Hyperbolic: parse-tree depth equals stack depth equals real tree depth.
+#   * sigma: ambiguity at S{d}_after_operand transitions (continue vs. close).
+#   * Monodromy: any matched [ ... ] is a closed walk in the FSM (open returns
+#     to the same depth-d after_operand state on close).
+#
+# Embedding: 16-dimensional placeholder embeddings (small deterministic
+# values per state). Not load-bearing for the dataset generator -- the
+# coordinates block exists to satisfy the GraphFSMSpec schema.
+#
+# Vertex count: 11
+# Edge count:   90  (1 START "[" + 10 START digits  =  11
+#                    + 3 * (4 op edges)             =  12
+#                    + 3 * 10 need_digit edges      =  30
+#                    + 2 * 1  need_"[" edges (d<3)  =   2
+#                    + 3 * 10 after_digit edges     =  30
+#                    + 2 * 1  after_"[" edges (d<3) =   2
+#                    + 3 * 1  after_"]" close edges =   3)
+
+schema_version: '1.0'
+name: listops_d3
+vertex_count: 11
+edge_count: 90
+vertices:
+- id: START
+  label: START
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_op
+  label: S1_op
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_need_operand
+  label: S1_need_operand
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S1_after_operand
+  label: S1_after_operand
+  layer: 1
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_op
+  label: S2_op
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_need_operand
+  label: S2_need_operand
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S2_after_operand
+  label: S2_after_operand
+  layer: 2
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_op
+  label: S3_op
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_need_operand
+  label: S3_need_operand
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: S3_after_operand
+  label: S3_after_operand
+  layer: 3
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: ACCEPT
+  label: ACCEPT
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+edges:
+# START -> ACCEPT on each digit (top-level digit is a complete expression).
+- {source: START, target: ACCEPT, label: '0', weight: 1.0}
+- {source: START, target: ACCEPT, label: '1', weight: 1.0}
+- {source: START, target: ACCEPT, label: '2', weight: 1.0}
+- {source: START, target: ACCEPT, label: '3', weight: 1.0}
+- {source: START, target: ACCEPT, label: '4', weight: 1.0}
+- {source: START, target: ACCEPT, label: '5', weight: 1.0}
+- {source: START, target: ACCEPT, label: '6', weight: 1.0}
+- {source: START, target: ACCEPT, label: '7', weight: 1.0}
+- {source: START, target: ACCEPT, label: '8', weight: 1.0}
+- {source: START, target: ACCEPT, label: '9', weight: 1.0}
+# START -> S1_op on "["
+- {source: START, target: S1_op, label: '[', weight: 1.0}
+# S1_op -> S1_need_operand on each operator
+- {source: S1_op, target: S1_need_operand, label: MAX, weight: 1.0}
+- {source: S1_op, target: S1_need_operand, label: MIN, weight: 1.0}
+- {source: S1_op, target: S1_need_operand, label: MED, weight: 1.0}
+- {source: S1_op, target: S1_need_operand, label: SUM_MOD, weight: 1.0}
+# S1_need_operand -> S1_after_operand on each digit
+- {source: S1_need_operand, target: S1_after_operand, label: '0', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '1', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '2', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '3', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '4', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '5', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '6', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '7', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '8', weight: 1.0}
+- {source: S1_need_operand, target: S1_after_operand, label: '9', weight: 1.0}
+# S1_need_operand -> S2_op on "[" (depth 1 < 3, so opening another bracket is legal)
+- {source: S1_need_operand, target: S2_op, label: '[', weight: 1.0}
+# S1_after_operand -> S1_after_operand on each digit (continue operand_list)
+- {source: S1_after_operand, target: S1_after_operand, label: '0', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '1', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '2', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '3', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '4', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '5', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '6', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '7', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '8', weight: 1.0}
+- {source: S1_after_operand, target: S1_after_operand, label: '9', weight: 1.0}
+# S1_after_operand -> S2_op on "[" (continue operand_list with a bracketed expr)
+- {source: S1_after_operand, target: S2_op, label: '[', weight: 1.0}
+# S1_after_operand -> ACCEPT on "]" (close the top-level bracketed expression)
+- {source: S1_after_operand, target: ACCEPT, label: ']', weight: 1.0}
+# S2_op -> S2_need_operand on each operator
+- {source: S2_op, target: S2_need_operand, label: MAX, weight: 1.0}
+- {source: S2_op, target: S2_need_operand, label: MIN, weight: 1.0}
+- {source: S2_op, target: S2_need_operand, label: MED, weight: 1.0}
+- {source: S2_op, target: S2_need_operand, label: SUM_MOD, weight: 1.0}
+# S2_need_operand -> S2_after_operand on each digit
+- {source: S2_need_operand, target: S2_after_operand, label: '0', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '1', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '2', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '3', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '4', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '5', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '6', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '7', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '8', weight: 1.0}
+- {source: S2_need_operand, target: S2_after_operand, label: '9', weight: 1.0}
+# S2_need_operand -> S3_op on "[" (depth 2 < 3, still legal)
+- {source: S2_need_operand, target: S3_op, label: '[', weight: 1.0}
+# S2_after_operand -> S2_after_operand on each digit (continue operand_list)
+- {source: S2_after_operand, target: S2_after_operand, label: '0', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '1', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '2', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '3', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '4', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '5', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '6', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '7', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '8', weight: 1.0}
+- {source: S2_after_operand, target: S2_after_operand, label: '9', weight: 1.0}
+# S2_after_operand -> S3_op on "["
+- {source: S2_after_operand, target: S3_op, label: '[', weight: 1.0}
+# S2_after_operand -> S1_after_operand on "]" (pop one level)
+- {source: S2_after_operand, target: S1_after_operand, label: ']', weight: 1.0}
+# S3_op -> S3_need_operand on each operator
+- {source: S3_op, target: S3_need_operand, label: MAX, weight: 1.0}
+- {source: S3_op, target: S3_need_operand, label: MIN, weight: 1.0}
+- {source: S3_op, target: S3_need_operand, label: MED, weight: 1.0}
+- {source: S3_op, target: S3_need_operand, label: SUM_MOD, weight: 1.0}
+# S3_need_operand -> S3_after_operand on each digit
+# (no "[" edge: depth 3 == max_depth, opening would exceed it)
+- {source: S3_need_operand, target: S3_after_operand, label: '0', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '1', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '2', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '3', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '4', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '5', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '6', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '7', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '8', weight: 1.0}
+- {source: S3_need_operand, target: S3_after_operand, label: '9', weight: 1.0}
+# S3_after_operand -> S3_after_operand on each digit (continue operand_list)
+- {source: S3_after_operand, target: S3_after_operand, label: '0', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '1', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '2', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '3', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '4', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '5', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '6', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '7', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '8', weight: 1.0}
+- {source: S3_after_operand, target: S3_after_operand, label: '9', weight: 1.0}
+# S3_after_operand -> S2_after_operand on "]" (pop)
+- {source: S3_after_operand, target: S2_after_operand, label: ']', weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 16
+  node_embeddings:
+    START:
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S1_op:
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S1_need_operand:
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S1_after_operand:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S2_op:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S2_need_operand:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S2_after_operand:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S3_op:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S3_need_operand:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    S3_after_operand:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    ACCEPT:
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.10
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+    - 0.00
+validation:
+  acyclic: false
+  start_nodes:
+  - START
+  end_nodes:
+  - ACCEPT
+  invariant_edges: []

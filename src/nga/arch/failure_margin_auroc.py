@@ -1,8 +1,29 @@
-"""AUROC of singularity scores against ground-truth errors.
+"""AUROC of singularity scores against ground-truth observables.
 
-Two callables: one computes the AUROC of margin (-margin, since lower margin
-should predict failure), the other of sigma(x). The Phase 2 acceptance test
-asserts sigma_auroc >= margin_auroc + 0.03 on E0/E1 outputs.
+This module provides two distinct families of AUROC metrics for the
+architecture's uncertainty signals (margin and sigma), each answering a
+different question about what an "abstain" decision is for:
+
+* ``margin_auroc`` / ``sigma_auroc`` -- *abstention from confidence*: do
+  these signals predict prediction ERRORS? "If I abstain when this
+  signal is high, do I avoid being wrong?" That's the failure-margin
+  framing: the ground-truth label is ``y_hat != y_true`` and the metric
+  asks whether the signal ranks failures above successes. This is the
+  Phase 2 q10 strict bar (sigma_uplift >= margin_auroc + 0.03).
+
+* ``structural_ambiguity_auroc`` -- *abstention from grammar*: do these
+  signals predict GRAMMAR-LEVEL AMBIGUITY POINTS? "If I abstain when
+  this signal is high, do I land on states where the grammar itself is
+  undecided?" That's the structural framing: the ground-truth label is
+  derived from the FSM (e.g. on ListOps, ``S{d}_after_operand`` states
+  where the parser must choose continue-list vs. close), and the metric
+  asks whether the signal ranks ambiguous states above unambiguous
+  ones.
+
+The two questions are different and both valid. The architecture has
+both signals (margin and sigma) because it needs to answer both: a
+margin-based signal tracks how confident the head is, while sigma is a
+structural detector that fires on grammar-level ambiguity by design.
 """
 from __future__ import annotations
 
@@ -10,7 +31,12 @@ import warnings
 
 import numpy as np
 
-__all__ = ["margin_auroc", "sigma_auroc", "binary_auroc"]
+__all__ = [
+    "margin_auroc",
+    "sigma_auroc",
+    "binary_auroc",
+    "structural_ambiguity_auroc",
+]
 
 
 def binary_auroc(scores: np.ndarray, labels: np.ndarray) -> float:
@@ -160,3 +186,65 @@ def sigma_auroc(sigmas: np.ndarray, errors: np.ndarray) -> float:
     sigmas = np.asarray(sigmas, dtype=float)
     errors = np.asarray(errors, dtype=bool)
     return binary_auroc(sigmas, errors)
+
+
+def structural_ambiguity_auroc(
+    scores: np.ndarray,
+    ambiguity_labels: np.ndarray,
+) -> float:
+    """AUROC of ``scores`` against ground-truth structural-ambiguity labels.
+
+    This is a contract-clarifying wrapper around :func:`binary_auroc`
+    that names the observable: instead of asking "does this signal
+    predict prediction errors?" (the failure-margin framing), this
+    asks "does this signal predict grammar-level ambiguity points?".
+
+    Higher score should correspond to higher predicted-ambiguity
+    probability. For sigma, that means passing sigma directly (it
+    already increases with predicted ambiguity); for margin, callers
+    should pass ``1.0 - margin`` (or ``-margin``, etc.) so that
+    "lower margin = more uncertain" maps to "higher predicted
+    ambiguity".
+
+    Parameters
+    ----------
+    scores:
+        Shape (N,) per-sample signal score; higher = more predicted
+        ambiguity.
+    ambiguity_labels:
+        Shape (N,) of bool or int (0/1). ``1`` / True iff the sample's
+        current state is a structurally-ambiguous state per the
+        grammar (e.g. on ListOps, an ``S{d}_after_operand`` state).
+
+    Returns
+    -------
+    float
+        AUROC in [0.0, 1.0]. Returns ``0.5`` (without warning) if all
+        labels are the same class -- AUROC is undefined for an
+        all-positive or all-negative label set, and the degenerate
+        case is reported as a neutral value rather than as an error
+        because it is a legitimate observation in small batches.
+    """
+    scores = np.asarray(scores, dtype=float)
+    ambiguity_labels = np.asarray(ambiguity_labels, dtype=bool)
+
+    if scores.ndim != 1 or ambiguity_labels.ndim != 1:
+        raise ValueError(
+            "scores and ambiguity_labels must be 1-D arrays"
+        )
+    if scores.shape != ambiguity_labels.shape:
+        raise ValueError(
+            f"scores and ambiguity_labels must have the same length:"
+            f" {scores.shape} vs {ambiguity_labels.shape}"
+        )
+
+    n_pos = int(ambiguity_labels.sum())
+    n_neg = int((~ambiguity_labels).sum())
+    if n_pos == 0 or n_neg == 0:
+        # Degenerate: AUROC is undefined when only one class is present.
+        # Return neutral 0.5 silently -- this is an observable outcome
+        # in small evaluation batches, not a misuse of the function.
+        return 0.5
+
+    # Reuse binary_auroc for the actual rank-sum computation.
+    return binary_auroc(scores, ambiguity_labels)

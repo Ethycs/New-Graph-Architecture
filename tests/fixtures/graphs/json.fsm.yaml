@@ -1,0 +1,311 @@
+# JSON parser FSM (RFC 8259 subset, max_depth = 3).
+#
+# Grammar (real RFC 8259 subset; every generated document parses via stdlib
+# json.loads):
+#
+#   value      := object | array | STRING | NUMBER | "true" | "false" | "null"
+#   object     := '{' (STRING ':' value (',' STRING ':' value)*)? '}'
+#   array      := '[' (value (',' value)*)? ']'
+#
+# Token alphabet (11 token types -- string contents and number digits are
+# collapsed to a single token type each):
+#
+#   {, }, [, ], ,, :, STRING, NUMBER, true, false, null
+#
+# State encoding (26 vertices total):
+#
+#   START                       -- initial state at the top of the document.
+#                                  Expects ANY value: this is the load-bearing
+#                                  sigma-ambiguity site of JSON -- 7 legal
+#                                  continuations ({, [, STRING, NUMBER, true,
+#                                  false, null).
+#   S{d}_obj_key for d in 1..3  -- inside an object at depth d, expecting the
+#                                  next STRING key OR '}' (empty / end).
+#   S{d}_obj_after_key          -- consumed a STRING key at depth d, expecting
+#                                  ':'.
+#   S{d}_obj_after_colon        -- consumed ':' at depth d, expecting a value.
+#                                  ANOTHER 7-way sigma-ambiguity site (only
+#                                  6 if d == max_depth, since '{' and '[' are
+#                                  forbidden at the boundary; we allow '{'/'['
+#                                  for d in 1..2 only).
+#   S{d}_obj_after_value        -- consumed a value at depth d (object body),
+#                                  expecting ',' or '}'.
+#   S{d}_obj_after_comma        -- consumed ',' inside object body, expecting
+#                                  the next STRING key.
+#   S{d}_arr_first_value        -- inside an array at depth d, expecting the
+#                                  first value OR ']' (empty array). Up to
+#                                  8 legal continuations (7 values + ']').
+#   S{d}_arr_after_value        -- consumed a value in array body, expecting
+#                                  ',' or ']'.
+#   S{d}_arr_after_comma        -- consumed ',' inside array body, expecting
+#                                  the next value (7-way sigma site).
+#   ACCEPT                      -- terminal: a complete top-level value has
+#                                  been parsed.
+#
+# Sigma-ambiguity sites ("expecting value" positions with 7 legal next
+# tokens each):
+#
+#   START                        -- 7 outgoing edges (top-level value).
+#   S{d}_obj_after_colon         -- 7 outgoing edges for d in 1..2,
+#                                   5 for d == 3 (no '{'/'['  at max depth).
+#   S{d}_arr_first_value         -- 8 outgoing edges for d in 1..2 (7 values
+#                                   + ']'), 6 for d == 3 (5 primitives + ']').
+#   S{d}_arr_after_comma         -- 7 outgoing edges for d in 1..2,
+#                                   5 for d == 3.
+#
+# These are THE structural ambiguity sites where sigma is predicted to fire.
+#
+# Transition rules (each edge consumes exactly one token; all close edges
+# from depth d to depth d-1 list every possible parent context as a target,
+# so the FSM is non-deterministic on close. The walker disambiguates using
+# its own parse-context stack):
+#
+#   START                  --STRING/NUMBER/true/false/null--> ACCEPT
+#   START                  --{-->                              S1_obj_key
+#   START                  --[-->                              S1_arr_first_value
+#
+#   S{d}_obj_key           --STRING-->                         S{d}_obj_after_key
+#   S{d}_obj_key           --}-->                              { ACCEPT (d=1) | S{d-1}_obj_after_value | S{d-1}_arr_after_value }
+#   S{d}_obj_after_key     --:-->                              S{d}_obj_after_colon
+#   S{d}_obj_after_colon   --STRING/NUMBER/true/false/null-->  S{d}_obj_after_value
+#   S{d}_obj_after_colon   --{-->                              S{d+1}_obj_key (only d < 3)
+#   S{d}_obj_after_colon   --[-->                              S{d+1}_arr_first_value (only d < 3)
+#   S{d}_obj_after_value   --,-->                              S{d}_obj_after_comma
+#   S{d}_obj_after_value   --}-->                              { ACCEPT (d=1) | S{d-1}_obj_after_value | S{d-1}_arr_after_value }
+#   S{d}_obj_after_comma   --STRING-->                         S{d}_obj_after_key
+#
+#   S{d}_arr_first_value   --STRING/NUMBER/true/false/null-->  S{d}_arr_after_value
+#   S{d}_arr_first_value   --{-->                              S{d+1}_obj_key (only d < 3)
+#   S{d}_arr_first_value   --[-->                              S{d+1}_arr_first_value (only d < 3)
+#   S{d}_arr_first_value   --]-->                              { ACCEPT (d=1) | S{d-1}_obj_after_value | S{d-1}_arr_after_value }
+#   S{d}_arr_after_value   --,-->                              S{d}_arr_after_comma
+#   S{d}_arr_after_value   --]-->                              { ACCEPT (d=1) | S{d-1}_obj_after_value | S{d-1}_arr_after_value }
+#   S{d}_arr_after_comma   --STRING/NUMBER/true/false/null-->  S{d}_arr_after_value
+#   S{d}_arr_after_comma   --{-->                              S{d+1}_obj_key (only d < 3)
+#   S{d}_arr_after_comma   --[-->                              S{d+1}_arr_first_value (only d < 3)
+#
+# Architectural claims this lets fire:
+#
+#   * Mask: ':' is legal ONLY at S{d}_obj_after_key. ',' is legal ONLY at
+#     S{d}_obj_after_value or S{d}_arr_after_value. '}' is legal ONLY at
+#     S{d}_obj_key or S{d}_obj_after_value. '[' / '{' are forbidden at max
+#     depth's "expecting value" states. STRING is legal as a key in some
+#     contexts and as a value in others -- mask is state-conditioned in
+#     several distinct ways.
+#   * Hyperbolic: container nesting depth equals stack depth.
+#   * sigma: at every "expecting value" state (START, S{d}_obj_after_colon,
+#     S{d}_arr_first_value, S{d}_arr_after_comma) the parser truly chooses
+#     between 7 (or more) legal continuations. This is the load-bearing
+#     prediction for Phase 16 -- if sigma_uplift is grammar-class
+#     conditional, JSON's value sites should be a 4th data point.
+#   * Monodromy: any matched '{...}' or '[...]' is a closed walk that
+#     descends and pops back.
+#
+# Vertex count: 26
+# Edge count:   99
+#   START:                          7 edges  (5 primitives + { + [)
+#   S{d}_obj_key (d=1..3):          1 edge  (STRING) + 1..2 close-} = 4 + 5 + 5
+#                                                                   = 14 - wait
+#       d=1: STRING + }->ACCEPT                                     = 2 edges
+#       d=2: STRING + }->S1_obj_after_value + }->S1_arr_after_value = 3 edges
+#       d=3: STRING + }->S2_obj_after_value + }->S2_arr_after_value = 3 edges
+#                                                                     subtotal 8
+#   S{d}_obj_after_key:             1 edge each * 3                 = 3
+#   S{d}_obj_after_colon:           7 (d=1) + 7 (d=2) + 5 (d=3)     = 19
+#   S{d}_obj_after_value:
+#       d=1: , + }->ACCEPT                                          = 2
+#       d=2: , + }->S1_obj_after_value + }->S1_arr_after_value      = 3
+#       d=3: , + }->S2_obj_after_value + }->S2_arr_after_value      = 3
+#                                                                     subtotal 8
+#   S{d}_obj_after_comma:           1 edge each * 3                 = 3
+#   S{d}_arr_first_value:
+#       d=1: 5 prims + { + [ + ]->ACCEPT                            = 8
+#       d=2: 5 prims + { + [ + ]->S1_obj_after_value + ]->S1_arr_after_value = 9
+#       d=3: 5 prims + ]->S2_obj_after_value + ]->S2_arr_after_value = 7
+#                                                                     subtotal 24
+#   S{d}_arr_after_value:
+#       d=1: , + ]->ACCEPT                                          = 2
+#       d=2: , + ]->S1_obj_after_value + ]->S1_arr_after_value      = 3
+#       d=3: , + ]->S2_obj_after_value + ]->S2_arr_after_value      = 3
+#                                                                     subtotal 8
+#   S{d}_arr_after_comma:           7 (d=1) + 7 (d=2) + 5 (d=3)     = 19
+#                              total: 7 + 8 + 3 + 19 + 8 + 3 + 24 + 8 + 19 = 99
+#
+# Embedding: 16-dimensional placeholder (small non-zero on a distinct
+# coordinate per state where possible; the alphabet has only 11 tokens
+# so 16 dims is comfortable). Not load-bearing for the dataset generator.
+schema_version: '1.0'
+name: json_d3
+vertex_count: 26
+edge_count: 99
+vertices:
+- {id: START, label: START, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_obj_key, label: S1_obj_key, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_obj_after_key, label: S1_obj_after_key, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_obj_after_colon, label: S1_obj_after_colon, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_obj_after_value, label: S1_obj_after_value, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_obj_after_comma, label: S1_obj_after_comma, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_obj_key, label: S2_obj_key, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_obj_after_key, label: S2_obj_after_key, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_obj_after_colon, label: S2_obj_after_colon, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_obj_after_value, label: S2_obj_after_value, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_obj_after_comma, label: S2_obj_after_comma, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_obj_key, label: S3_obj_key, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_obj_after_key, label: S3_obj_after_key, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_obj_after_colon, label: S3_obj_after_colon, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_obj_after_value, label: S3_obj_after_value, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_obj_after_comma, label: S3_obj_after_comma, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_arr_first_value, label: S1_arr_first_value, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_arr_after_value, label: S1_arr_after_value, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S1_arr_after_comma, label: S1_arr_after_comma, layer: 1, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_arr_first_value, label: S2_arr_first_value, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_arr_after_value, label: S2_arr_after_value, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S2_arr_after_comma, label: S2_arr_after_comma, layer: 2, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_arr_first_value, label: S3_arr_first_value, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_arr_after_value, label: S3_arr_after_value, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: S3_arr_after_comma, label: S3_arr_after_comma, layer: 3, w_v: 1.0, g_v: 0.1, m_v: null}
+- {id: ACCEPT, label: ACCEPT, layer: 0, w_v: 1.0, g_v: 0.1, m_v: null}
+edges:
+# START: top-level value-expecting (sigma-ambiguity site, 7 outgoing edges).
+- {source: START, target: ACCEPT, label: STRING, weight: 1.0}
+- {source: START, target: ACCEPT, label: NUMBER, weight: 1.0}
+- {source: START, target: ACCEPT, label: 'true', weight: 1.0}
+- {source: START, target: ACCEPT, label: 'false', weight: 1.0}
+- {source: START, target: ACCEPT, label: 'null', weight: 1.0}
+- {source: START, target: S1_obj_key, label: '{', weight: 1.0}
+- {source: START, target: S1_arr_first_value, label: '[', weight: 1.0}
+# Depth 1, object body.
+- {source: S1_obj_key, target: S1_obj_after_key, label: STRING, weight: 1.0}
+- {source: S1_obj_key, target: ACCEPT, label: '}', weight: 1.0}
+- {source: S1_obj_after_key, target: S1_obj_after_colon, label: ':', weight: 1.0}
+- {source: S1_obj_after_colon, target: S1_obj_after_value, label: STRING, weight: 1.0}
+- {source: S1_obj_after_colon, target: S1_obj_after_value, label: NUMBER, weight: 1.0}
+- {source: S1_obj_after_colon, target: S1_obj_after_value, label: 'true', weight: 1.0}
+- {source: S1_obj_after_colon, target: S1_obj_after_value, label: 'false', weight: 1.0}
+- {source: S1_obj_after_colon, target: S1_obj_after_value, label: 'null', weight: 1.0}
+- {source: S1_obj_after_colon, target: S2_obj_key, label: '{', weight: 1.0}
+- {source: S1_obj_after_colon, target: S2_arr_first_value, label: '[', weight: 1.0}
+- {source: S1_obj_after_value, target: S1_obj_after_comma, label: ',', weight: 1.0}
+- {source: S1_obj_after_value, target: ACCEPT, label: '}', weight: 1.0}
+- {source: S1_obj_after_comma, target: S1_obj_after_key, label: STRING, weight: 1.0}
+# Depth 2, object body.
+- {source: S2_obj_key, target: S2_obj_after_key, label: STRING, weight: 1.0}
+- {source: S2_obj_key, target: S1_obj_after_value, label: '}', weight: 1.0}
+- {source: S2_obj_key, target: S1_arr_after_value, label: '}', weight: 1.0}
+- {source: S2_obj_after_key, target: S2_obj_after_colon, label: ':', weight: 1.0}
+- {source: S2_obj_after_colon, target: S2_obj_after_value, label: STRING, weight: 1.0}
+- {source: S2_obj_after_colon, target: S2_obj_after_value, label: NUMBER, weight: 1.0}
+- {source: S2_obj_after_colon, target: S2_obj_after_value, label: 'true', weight: 1.0}
+- {source: S2_obj_after_colon, target: S2_obj_after_value, label: 'false', weight: 1.0}
+- {source: S2_obj_after_colon, target: S2_obj_after_value, label: 'null', weight: 1.0}
+- {source: S2_obj_after_colon, target: S3_obj_key, label: '{', weight: 1.0}
+- {source: S2_obj_after_colon, target: S3_arr_first_value, label: '[', weight: 1.0}
+- {source: S2_obj_after_value, target: S2_obj_after_comma, label: ',', weight: 1.0}
+- {source: S2_obj_after_value, target: S1_obj_after_value, label: '}', weight: 1.0}
+- {source: S2_obj_after_value, target: S1_arr_after_value, label: '}', weight: 1.0}
+- {source: S2_obj_after_comma, target: S2_obj_after_key, label: STRING, weight: 1.0}
+# Depth 3, object body (max depth -- no '{' / '[' at value sites).
+- {source: S3_obj_key, target: S3_obj_after_key, label: STRING, weight: 1.0}
+- {source: S3_obj_key, target: S2_obj_after_value, label: '}', weight: 1.0}
+- {source: S3_obj_key, target: S2_arr_after_value, label: '}', weight: 1.0}
+- {source: S3_obj_after_key, target: S3_obj_after_colon, label: ':', weight: 1.0}
+- {source: S3_obj_after_colon, target: S3_obj_after_value, label: STRING, weight: 1.0}
+- {source: S3_obj_after_colon, target: S3_obj_after_value, label: NUMBER, weight: 1.0}
+- {source: S3_obj_after_colon, target: S3_obj_after_value, label: 'true', weight: 1.0}
+- {source: S3_obj_after_colon, target: S3_obj_after_value, label: 'false', weight: 1.0}
+- {source: S3_obj_after_colon, target: S3_obj_after_value, label: 'null', weight: 1.0}
+- {source: S3_obj_after_value, target: S3_obj_after_comma, label: ',', weight: 1.0}
+- {source: S3_obj_after_value, target: S2_obj_after_value, label: '}', weight: 1.0}
+- {source: S3_obj_after_value, target: S2_arr_after_value, label: '}', weight: 1.0}
+- {source: S3_obj_after_comma, target: S3_obj_after_key, label: STRING, weight: 1.0}
+# Depth 1, array body.
+- {source: S1_arr_first_value, target: S1_arr_after_value, label: STRING, weight: 1.0}
+- {source: S1_arr_first_value, target: S1_arr_after_value, label: NUMBER, weight: 1.0}
+- {source: S1_arr_first_value, target: S1_arr_after_value, label: 'true', weight: 1.0}
+- {source: S1_arr_first_value, target: S1_arr_after_value, label: 'false', weight: 1.0}
+- {source: S1_arr_first_value, target: S1_arr_after_value, label: 'null', weight: 1.0}
+- {source: S1_arr_first_value, target: S2_obj_key, label: '{', weight: 1.0}
+- {source: S1_arr_first_value, target: S2_arr_first_value, label: '[', weight: 1.0}
+- {source: S1_arr_first_value, target: ACCEPT, label: ']', weight: 1.0}
+- {source: S1_arr_after_value, target: S1_arr_after_comma, label: ',', weight: 1.0}
+- {source: S1_arr_after_value, target: ACCEPT, label: ']', weight: 1.0}
+- {source: S1_arr_after_comma, target: S1_arr_after_value, label: STRING, weight: 1.0}
+- {source: S1_arr_after_comma, target: S1_arr_after_value, label: NUMBER, weight: 1.0}
+- {source: S1_arr_after_comma, target: S1_arr_after_value, label: 'true', weight: 1.0}
+- {source: S1_arr_after_comma, target: S1_arr_after_value, label: 'false', weight: 1.0}
+- {source: S1_arr_after_comma, target: S1_arr_after_value, label: 'null', weight: 1.0}
+- {source: S1_arr_after_comma, target: S2_obj_key, label: '{', weight: 1.0}
+- {source: S1_arr_after_comma, target: S2_arr_first_value, label: '[', weight: 1.0}
+# Depth 2, array body.
+- {source: S2_arr_first_value, target: S2_arr_after_value, label: STRING, weight: 1.0}
+- {source: S2_arr_first_value, target: S2_arr_after_value, label: NUMBER, weight: 1.0}
+- {source: S2_arr_first_value, target: S2_arr_after_value, label: 'true', weight: 1.0}
+- {source: S2_arr_first_value, target: S2_arr_after_value, label: 'false', weight: 1.0}
+- {source: S2_arr_first_value, target: S2_arr_after_value, label: 'null', weight: 1.0}
+- {source: S2_arr_first_value, target: S3_obj_key, label: '{', weight: 1.0}
+- {source: S2_arr_first_value, target: S3_arr_first_value, label: '[', weight: 1.0}
+- {source: S2_arr_first_value, target: S1_obj_after_value, label: ']', weight: 1.0}
+- {source: S2_arr_first_value, target: S1_arr_after_value, label: ']', weight: 1.0}
+- {source: S2_arr_after_value, target: S2_arr_after_comma, label: ',', weight: 1.0}
+- {source: S2_arr_after_value, target: S1_obj_after_value, label: ']', weight: 1.0}
+- {source: S2_arr_after_value, target: S1_arr_after_value, label: ']', weight: 1.0}
+- {source: S2_arr_after_comma, target: S2_arr_after_value, label: STRING, weight: 1.0}
+- {source: S2_arr_after_comma, target: S2_arr_after_value, label: NUMBER, weight: 1.0}
+- {source: S2_arr_after_comma, target: S2_arr_after_value, label: 'true', weight: 1.0}
+- {source: S2_arr_after_comma, target: S2_arr_after_value, label: 'false', weight: 1.0}
+- {source: S2_arr_after_comma, target: S2_arr_after_value, label: 'null', weight: 1.0}
+- {source: S2_arr_after_comma, target: S3_obj_key, label: '{', weight: 1.0}
+- {source: S2_arr_after_comma, target: S3_arr_first_value, label: '[', weight: 1.0}
+# Depth 3, array body (max depth -- no '{' / '[' at value sites).
+- {source: S3_arr_first_value, target: S3_arr_after_value, label: STRING, weight: 1.0}
+- {source: S3_arr_first_value, target: S3_arr_after_value, label: NUMBER, weight: 1.0}
+- {source: S3_arr_first_value, target: S3_arr_after_value, label: 'true', weight: 1.0}
+- {source: S3_arr_first_value, target: S3_arr_after_value, label: 'false', weight: 1.0}
+- {source: S3_arr_first_value, target: S3_arr_after_value, label: 'null', weight: 1.0}
+- {source: S3_arr_first_value, target: S2_obj_after_value, label: ']', weight: 1.0}
+- {source: S3_arr_first_value, target: S2_arr_after_value, label: ']', weight: 1.0}
+- {source: S3_arr_after_value, target: S3_arr_after_comma, label: ',', weight: 1.0}
+- {source: S3_arr_after_value, target: S2_obj_after_value, label: ']', weight: 1.0}
+- {source: S3_arr_after_value, target: S2_arr_after_value, label: ']', weight: 1.0}
+- {source: S3_arr_after_comma, target: S3_arr_after_value, label: STRING, weight: 1.0}
+- {source: S3_arr_after_comma, target: S3_arr_after_value, label: NUMBER, weight: 1.0}
+- {source: S3_arr_after_comma, target: S3_arr_after_value, label: 'true', weight: 1.0}
+- {source: S3_arr_after_comma, target: S3_arr_after_value, label: 'false', weight: 1.0}
+- {source: S3_arr_after_comma, target: S3_arr_after_value, label: 'null', weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 16
+  node_embeddings:
+    START: [0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_obj_key:          [0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_obj_after_key:    [0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_obj_after_colon:  [0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_obj_after_value:  [0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_obj_after_comma:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_obj_key:          [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_obj_after_key:    [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_obj_after_colon:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_obj_after_value:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_obj_after_comma:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S3_obj_key:          [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00]
+    S3_obj_after_key:    [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00]
+    S3_obj_after_colon:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00, 0.00]
+    S3_obj_after_value:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10, 0.00]
+    S3_obj_after_comma:  [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.10]
+    S1_arr_first_value:  [0.05, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_arr_after_value:  [0.05, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S1_arr_after_comma:  [0.05, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_arr_first_value:  [0.05, 0.00, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_arr_after_value:  [0.05, 0.00, 0.00, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S2_arr_after_comma:  [0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S3_arr_first_value:  [0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S3_arr_after_value:  [0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    S3_arr_after_comma:  [0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    ACCEPT:              [0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.05, 0.05]
+validation:
+  acyclic: false
+  start_nodes:
+  - START
+  end_nodes:
+  - ACCEPT
+  invariant_edges: []

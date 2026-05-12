@@ -1,0 +1,17 @@
+schema_version: "1.0"
+grammar_spec_path: ./tests/fixtures/grammars/babyai-synthetic.grammar.yaml
+# 19B has no FSM (the cluster lattice is *discovered*); we still pass the
+# diagnostic FSM file here because the CLI loader requires graph_fsm_path.
+# E23's run_e23 ignores it.
+graph_fsm_path: ./tests/fixtures/graphs/diagnostic.fsm.yaml
+graph_fsm_source: hand
+group_spec_path: ./tests/fixtures/groups/babyai.group.yaml
+embedding_dim: 16
+temperature: 1.0
+idf_alpha: 1.0
+ablation: A0
+dataset: dyck-k  # Config Literal does not include 'diagnostic'; selected by experiment dispatch (E23 -> diagnostic-unsup).
+seed: 42
+batch_size: 64
+num_epochs: 1
+device: cpu

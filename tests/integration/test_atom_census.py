@@ -119,15 +119,11 @@ def test_every_implemented_atom_has_a_caller():
             if its_imports & consumed:
                 consumed.add(m); changed = True
 
-    # Torch atoms are awaiting integration into a future runner. They are
-    # implemented and unit-tested as siblings of the sklearn substrate
-    # atoms, but no current experiment runner imports them yet. Skip them
-    # here so the census stays green while the runner-side wiring is
-    # pending. Remove from this list once a runner consumes them.
-    KNOWN_UNCONSUMED = {
-        "nga.arch.frozen_encoder_torch",
-        "nga.arch.typed_readout_torch",
-    }
+    # Torch atoms are now consumed by E12 (substrate-independence runner)
+    # and torch_energy_trainer by E14 (torch-native end-to-end training);
+    # the sklearn-substrate siblings remain consumed by E0..E11. No atoms
+    # are currently un-consumed.
+    KNOWN_UNCONSUMED: set[str] = set()
 
     unused = sorted(set(all_modules) - consumed - KNOWN_UNCONSUMED)
     # A handful of modules may legitimately have no caller during the

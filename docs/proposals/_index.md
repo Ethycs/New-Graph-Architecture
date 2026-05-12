@@ -1,0 +1,11 @@
+# Proposals
+
+Research proposals for substantial new work that is not yet in scope of the day-to-day phase log in `research_log.md`. Each proposal here is a pre-registered, falsifiable claim with a stated decision criterion. A proposal is promoted to a phase only after its central hypothesis has been reviewed and the acceptance bars have been agreed.
+
+## Index
+
+- [graph-extraction.md](graph-extraction.md) — Universal Graph Extraction: recovering Typed Protocol Networks from homogeneously trained substrates.
+
+## Adding a proposal
+
+A proposal is a single Markdown file in this directory containing, at minimum: title, abstract, background, central hypothesis (H₀ and H₁), methods, validation protocol with pre-registered acceptance bars, sudden large implications, risks/limitations, timeline, and decision criterion. The proposal supersedes ad-hoc "what's next" suggestions in `research_log.md` once approved.

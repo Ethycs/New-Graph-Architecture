@@ -15,6 +15,37 @@ above threshold. The new piecewise formula uses a steep slope below
 threshold (danger zone) and a gentle decay above it, so sigma is always
 monotonically related to margin across the full range and margin's AUROC
 is preserved even when sigma has no other signals.
+
+Phase 7 -- KL surprise
+~~~~~~~~~~~~~~~~~~~~~~
+
+Phase 7 adds an information-theoretic signal to the additive blend:
+``kl_surprise``. Where the existing signals are heuristic (margin gap,
+decision-tie, hard illegality, loop pressure, stabilizer jump), KL surprise
+is principled -- it measures the divergence between the model's predicted
+next-state distribution and the empirical conditional distribution given
+the same context. When the two agree (the model's predictions match what
+the data actually does), surprise is ~0; when they disagree, surprise is
+large.
+
+The convenience helper ``compute_kl_surprise(empirical, predicted)`` wraps
+``kl_categorical`` with the bounded transform
+
+    surprise = 1 - exp(-KL(empirical || predicted))
+
+so that surprise lives in ``[0, 1)``: zero KL maps to zero surprise, large
+KL saturates near 1. This keeps the signal on the same scale as every
+other ``SignalContributions`` field and prevents a runaway log-ratio from
+single-handedly pinning sigma to 1.0.
+
+Backward compatibility: ``kl_surprise`` defaults to ``None`` on
+``compute()`` and to weight 0.0 in ``DEFAULT_WEIGHTS``, so existing callers
+see identical sigma values. The signal is opt-in: callers must both pass
+a numeric ``kl_surprise`` and bump the weight above zero (or pass an
+explicit ``weights`` override) to make it contribute. Importantly the
+surprise is *purely informational* -- it does not depend on the legality
+mask, so two predictions with the same KL divergence contribute the same
+amount to sigma whether or not the proposed transition is illegal.
 """
 from __future__ import annotations
 
@@ -22,7 +53,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-__all__ = ["SignalContributions", "SingularityDetector", "compute_sigma"]
+from nga.arch.information_geometry import kl_categorical
+
+__all__ = [
+    "SignalContributions",
+    "SingularityDetector",
+    "compute_sigma",
+    "compute_kl_surprise",
+]
 
 
 @dataclass
@@ -35,6 +73,7 @@ class SignalContributions:
     loop_signal: float
     stabilizer_signal: float  # Phase 4 stub: always 0.0
     catastrophe_bias: float  # additive bias from edge label, in [0, 0.15]
+    kl_surprise: float = 0.0  # Phase 7: 1 - exp(-KL(empirical || predicted))
 
 
 class SingularityDetector:
@@ -51,6 +90,10 @@ class SingularityDetector:
         "illegal": 0.2,
         "loop": 0.05,
         "stabilizer": 0.05,
+        # Phase 7: KL-surprise signal. Default weight is 0.0 so existing
+        # behaviour is preserved exactly; users opt in by overriding this
+        # weight via the ``weights`` constructor argument.
+        "kl_surprise": 0.0,
     }
 
     def __init__(
@@ -116,6 +159,7 @@ class SingularityDetector:
         stabilizer_risk: float = 0.0,
         catastrophe_bias: float = 0.0,
         decision_tie_strength: float = 0.0,
+        kl_surprise: float | None = None,
     ) -> tuple[float, SignalContributions]:
         """Return (sigma, breakdown).
 
@@ -140,6 +184,13 @@ class SingularityDetector:
             Normalised top-1 minus top-2 gap used as the decision-tie
             signal. For Phase 2 the caller may pass the same value as
             `margin`. Must be in [0.0, 1.0].
+        kl_surprise:
+            Optional Phase-7 KL-surprise signal in [0.0, 1.0). When
+            ``None`` (the default) or 0.0, the signal contributes nothing,
+            preserving pre-Phase-7 behaviour exactly. When provided as a
+            positive value, it adds ``weights["kl_surprise"] * kl_surprise``
+            to sigma. Build the value via ``compute_kl_surprise(empirical,
+            predicted)`` for the canonical ``1 - exp(-KL)`` transform.
 
         Returns
         -------
@@ -164,6 +215,13 @@ class SingularityDetector:
                 f"decision_tie_strength must be in [0.0, 1.0],"
                 f" got {decision_tie_strength}"
             )
+        # kl_surprise is None or a numeric value in [0, 1). We accept tiny
+        # floating-point overshoot above 1.0 from the bounded transform.
+        if kl_surprise is not None:
+            if not (0.0 <= kl_surprise <= 1.0):
+                raise ValueError(
+                    f"kl_surprise must be in [0.0, 1.0], got {kl_surprise}"
+                )
 
         zero_contribs = SignalContributions(
             margin_signal=0.0,
@@ -172,6 +230,7 @@ class SingularityDetector:
             loop_signal=0.0,
             stabilizer_signal=0.0,
             catastrophe_bias=0.0,
+            kl_surprise=0.0,
         )
 
         if not self._enabled:
@@ -184,6 +243,9 @@ class SingularityDetector:
         # per the required formula. The static helper signal_from_decision_tie is
         # provided for callers that have a raw gap and want to convert it first.
         ill = 1.0 if is_illegal else 0.0
+        # Phase 7: surprise contribution. ``None`` is treated as 0.0 so the
+        # signal is fully opt-in.
+        kl_val = 0.0 if kl_surprise is None else float(kl_surprise)
 
         contribs = SignalContributions(
             margin_signal=ms,
@@ -192,6 +254,7 @@ class SingularityDetector:
             loop_signal=loop_risk,
             stabilizer_signal=stabilizer_risk,
             catastrophe_bias=catastrophe_bias,
+            kl_surprise=kl_val,
         )
 
         sigma: float = (
@@ -200,6 +263,7 @@ class SingularityDetector:
             + w["illegal"] * ill
             + w["loop"] * loop_risk
             + w["stabilizer"] * stabilizer_risk
+            + w["kl_surprise"] * kl_val
         )
         sigma += catastrophe_bias
         sigma = max(0.0, min(1.0, sigma))
@@ -265,6 +329,60 @@ class SingularityDetector:
         if top1_top2_gap >= threshold:
             return 0.0
         return 1.0 - top1_top2_gap / threshold
+
+
+def compute_kl_surprise(
+    empirical: np.ndarray,
+    predicted: np.ndarray,
+) -> float:
+    """Bounded KL-surprise signal for the Phase-7 detector slot.
+
+    Computes the categorical KL divergence between an empirical conditional
+    distribution (estimated from history given the current context) and the
+    model's predicted next-state distribution, then maps it through the
+    bounded transform
+
+        surprise = 1 - exp(-KL(empirical || predicted))
+
+    so the result lives in ``[0, 1)``:
+
+      * KL = 0 (distributions match) -> surprise = 0,
+      * KL -> infinity (model is wildly wrong) -> surprise -> 1.
+
+    The transform keeps the surprise on the same scale as every other
+    ``SignalContributions`` slot, which is essential for the additive
+    weighted blend in ``SingularityDetector.compute``: a single noisy
+    log-ratio in raw KL space could otherwise pin sigma to its ceiling
+    of 1.0 regardless of the other signals.
+
+    Parameters
+    ----------
+    empirical:
+        Empirical conditional p(next-state | context) from history. Must
+        be a non-negative 1-D probability vector summing to ~1.
+    predicted:
+        Model's predicted distribution over the same support. Same shape
+        as ``empirical``.
+
+    Returns
+    -------
+    float
+        Surprise in [0, 1).
+    """
+    kl = float(kl_categorical(np.asarray(empirical, dtype=float),
+                              np.asarray(predicted, dtype=float)))
+    # Clip tiny floating-point negatives -- KL is provably non-negative.
+    kl = max(kl, 0.0)
+    surprise = 1.0 - float(np.exp(-kl))
+    # Defensive clip in case of floating-point drift.
+    if surprise < 0.0:
+        return 0.0
+    if surprise >= 1.0:
+        # 1 - exp(-kl) is strictly < 1 for finite kl, but float arithmetic
+        # can produce 1.0 for extremely large kl; nudge below 1.0 so the
+        # contract "bounded in [0, 1)" holds.
+        return float(np.nextafter(1.0, 0.0))
+    return surprise
 
 
 def compute_sigma(
