@@ -137,6 +137,10 @@ class E28Result:
     projection_train_accuracy: float
     projection_failure_accuracy: float
     projection_entropy_mse: float
+    # Phase 23b: adversarial token head diagnostics. NaN when the head
+    # is disabled (``adversarial_token_weight == 0.0``).
+    projection_token_accuracy: float
+    adversarial_token_weight: float
 
     phase_1_wall_clock_seconds: float
     phase_2_wall_clock_seconds: float
@@ -199,6 +203,7 @@ def run_e28(
     n_encoder_train_epochs: int = 50,
     n_projection_train_epochs: int = 30,
     target_n_regimes: int | None = None,
+    adversarial_token_weight: float = 0.0,
 ) -> E28Result:
     """Predictive Control Graph Extractor MVP run on one grammar."""
     if torch is None:
@@ -254,13 +259,25 @@ def run_e28(
 
     # ---- Phase 2: train predictive projection h -> z ----
     t2 = time.perf_counter()
+    # Build per-grammar token vocab for the adversarial head. Even if
+    # adversarial_token_weight == 0.0 we compute it cheaply so the
+    # diagnostic numbers are comparable across runs.
+    observed_tokens = [s.observed_token for s in train_ds.samples]
+    token_vocab = sorted(set(observed_tokens))
+    token_to_id = {t: i for i, t in enumerate(token_vocab)}
+    token_ids = np.asarray(
+        [token_to_id[t] for t in observed_tokens], dtype=np.int64
+    )
+    n_tokens = len(token_vocab)
+
     proj_cfg = PredictiveProjectionConfig(
         z_dim=projection_z_dim,
         hidden_dim=projection_hidden_dim,
         n_states=V,
         entropy_weight=1.0,
         failure_weight=1.0,
-        adversarial_token_weight=0.0,  # off in MVP
+        adversarial_token_weight=float(adversarial_token_weight),
+        n_tokens=n_tokens if adversarial_token_weight > 0.0 else 0,
     )
     projection = PredictiveProjection(
         input_dim=h_full.shape[1], config=proj_cfg
@@ -275,6 +292,9 @@ def run_e28(
         next_states=train_ds.y_next,
         entropy_targets=entropy_targets,
         failure_targets=failure_targets,
+        token_ids=(
+            token_ids if adversarial_token_weight > 0.0 else None
+        ),
         epochs=n_projection_train_epochs,
         lr=1e-3,
         batch_size=64,
@@ -465,6 +485,8 @@ def run_e28(
             "aligned_hamming_at_target_V": aligned_hamming,
             "encoder_train_accuracy": encoder_train_acc,
             "projection": proj_diag,
+            "adversarial_token_weight": float(adversarial_token_weight),
+            "n_tokens": int(n_tokens),
         },
     }
     (output_dir / "control_graph.json").write_text(
@@ -502,6 +524,10 @@ def run_e28(
         projection_train_accuracy=float(proj_diag.get("next_state_acc", 0.0)),
         projection_failure_accuracy=float(proj_diag.get("failure_acc", 0.0)),
         projection_entropy_mse=float(proj_diag.get("entropy_mse", 0.0)),
+        projection_token_accuracy=float(
+            proj_diag.get("token_acc", float("nan"))
+        ),
+        adversarial_token_weight=float(adversarial_token_weight),
         phase_1_wall_clock_seconds=float(phase_1_seconds),
         phase_2_wall_clock_seconds=float(phase_2_seconds),
         phase_3_wall_clock_seconds=float(phase_3_seconds),

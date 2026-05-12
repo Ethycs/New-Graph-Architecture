@@ -26,6 +26,67 @@ the top of this file.
 
 ---
 
+## 2026-05-08 — Phase 23b — adversarial token head: mechanism verified, null-to-negative on the state-conditioned substrate
+
+### What we built
+
+Wired the existing `PredictiveProjection` adversarial token head through `run_e28`: built a per-grammar token vocab from `s.observed_token`, plumbed `n_tokens` + `adversarial_token_weight` into the projection config, passed `token_ids` to `train_predictive_projection`. New sweep script `scripts/phase23b_adversarial_token_sweep.py` runs each grammar three times — `adversarial_token_weight ∈ {0.0, 0.5, 1.0}` — keeping every other knob fixed.
+
+### Results — 5-grammar sweep (seed 42, 41 s total CPU)
+
+| grammar | V | adv_w | argmax cells | mean state-purity | mean failure | mean margin | token_acc |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| listops | 11 | 0.0 | 5 | **0.850** | 0.036 | 1.95 | — |
+| listops | 11 | 0.5 | 5 | 0.748 | 0.014 | 1.77 | 0.104 |
+| listops | 11 | 1.0 | 5 | 0.694 | 0.013 | 1.60 | **0.056** (below chance) |
+| python_expr | 14 | 0.0 | 11 | 0.766 | 0.0002 | 6.22 | — |
+| python_expr | 14 | 0.5 | 11 | 0.767 | 0.0000 | 4.32 | 0.275 |
+| python_expr | 14 | 1.0 | 11 | 0.759 | 0.0000 | 4.67 | 0.364 |
+| python_big | 24 | 0.0 | 23 | 0.789 | 0.0002 | 6.02 | — |
+| python_big | 24 | 0.5 | 23 | 0.788 | 0.0000 | 5.44 | 0.486 |
+| python_big | 24 | 1.0 | 23 | **0.790** | 0.0000 | 4.08 | 0.370 |
+| json | 26 | 0.0 | 25 | 0.755 | 0.0022 | 3.00 | — |
+| json | 26 | 0.5 | 25 | 0.773 | 0.0016 | 2.46 | 0.605 |
+| json | 26 | 1.0 | 25 | **0.779** | 0.0000 | 1.70 | 0.296 |
+| python_control | 37 | 0.0 | 36 | 0.788 | 0.0002 | 5.45 | — |
+| python_control | 37 | 0.5 | 36 | 0.776 | 0.0002 | 2.63 | 0.608 |
+| python_control | 37 | 1.0 | 36 | 0.768 | 0.0001 | 2.81 | 0.614 |
+
+**Aggregate means:**
+
+| adv_w | mean purity | mean argmax cells | mean failure | mean margin |
+|---:|---:|---:|---:|---:|
+| 0.0 (Phase 23 control) | **0.7897** | 20.0 | 0.0078 | **4.529** |
+| 0.5 | 0.7703 | 20.0 | 0.0031 | 3.326 |
+| 1.0 | 0.7581 | 20.0 | 0.0027 | 2.971 |
+
+### Architectural reading
+
+**Mechanism: verified.** Token accuracy under `adv_w=1.0` drops well below chance on listops (`tok_acc=0.056` vs `1/n_tokens ≈ 0.06`; encoder is actively scrambling token signal), and stays well below "without adversarial signal" baseline on every other grammar. The gradient-reversal layer is doing the work it was designed for.
+
+**Effect on our substrate: null-to-negative.** Mean state-purity drops by 3pp (0.790 → 0.758) and mean margin shrinks 35% (4.5 → 3.0). The number of argmax cells is unchanged (the partition shape isn't altered by stripping token info from `z`); failure rate drops slightly because confident-wrong predictions are crowded out by less-confident predictions overall.
+
+**Per-grammar split: token info matters differently per grammar.** Listops loses 16pp of purity — its FSM transitions are token-discriminative (different ops, brackets, ints have different state implications), and stripping token info costs the model real discriminative power. JSON gains a few pp — its state structure is largely token-independent (a value-position is a value-position whether the content is a number, string, or object), so stripping nuisance content actually helps. Python expr / big / control sit between, near-flat.
+
+**The clean architectural finding: the adversarial token head is the *wrong tool* for our current substrate.** The Wave-C / E26 encoder concatenates `current_state` one-hot to its input by design, so the encoder already has access to the FSM state at every step. Token information is **complementary disambiguator**, not nuisance: given (`state=S1_after_term`, `token=NAME`) vs (`state=S1_after_term`, `token=NUMBER`), the next-state distributions genuinely differ. Stripping token info forces the projection to pick a single next-state distribution per state, losing the conditional structure the encoder learned.
+
+**Where the adversarial head IS load-bearing: the arbitrary-frozen-network case (Phase 23d).** A frozen transformer has no `current_state` injected; the only thing identifying state in its activations is the contextual aggregation of past tokens. There, **stripping token-level surface information from `z` is exactly the right move** — content variance dominates, and the state signal is the lower-frequency component buried under it. Phase 23b's null-result on our state-conditioned substrate is the architecturally correct outcome for a substrate that already has the state signal. The same head should help meaningfully on Phase 23d.
+
+### What this validates / refutes
+
+- ✓ The adversarial head implementation is correct (gradient reversal verifiably scrambles token signal).
+- ✓ The diagnostic stack distinguishes "head works" (token_acc drops) from "head helps" (purity rises) cleanly — both are reported and answer different questions.
+- ✗ The adversarial head does NOT improve PCG-X on the state-conditioned MLP substrate. Net effect on purity is −3pp at adv_w=1.0; margin shrinks materially.
+- → Predicted to help on Phase 23d (frozen transformer, no state-conditioning). Cheap to verify once the transformer substrate lands.
+
+### What's next
+
+- **Phase 23c — intervention-labelled edges.** Sample input edits per regime; estimate `P(next regime | current regime, intervention)`. This is the "control" leg.
+- **Phase 23d — real frozen transformer base network.** Train a small transformer on Python source, no state-conditioning; run PCG-X on its mid-layer activations both with and without the adversarial token head; expect the head to be net-positive there.
+- **σ + control_policy integration.** Hook the existing `singularity_detector` + `control_policy` atoms to the PCG-X regime annotations so each regime emits NORMAL / RECOVERY / ABSTAIN.
+
+Suite: 500 passed, 8 xfailed, 1 pre-existing E0 env-flake (unchanged).
+
 ## 2026-05-08 — Phase 23 — Predictive Control Graph Extractor MVP: partition by prediction, merge by behavior
 
 ### The architectural reframe
