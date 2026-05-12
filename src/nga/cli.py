@@ -37,7 +37,7 @@ from nga.drivers import seeding
 # Public helpers
 # ---------------------------------------------------------------------------
 
-EXPERIMENT_CHOICES: list[str] = [f"E{i}" for i in range(24)]
+EXPERIMENT_CHOICES: list[str] = [f"E{i}" for i in range(25)]
 ABLATION_PATTERN = re.compile(r"^A\d+$")
 
 
@@ -1006,6 +1006,30 @@ def main(argv: Optional[list[str]] = None) -> int:
             f"phase_3_s={result.phase_3_wall_clock_seconds:.2f} "
             f"total_s={result.total_wall_clock_seconds:.2f} "
             f"throughput={result.inference_throughput_samples_per_sec:.1f} "
+            f"peak_mem_kb={result.peak_memory_kb:.0f}"
+        )
+        print(f"run_id: {run_id}  output: {output_dir}")
+        return 0
+
+    if args.experiment == "E24":
+        from nga.exp.e24_graph_extraction import run_e24_synthetic
+
+        result = run_e24_synthetic(
+            config=merged_config,
+            ablation=ablation_tuple,
+            run_id=run_id,
+            output_dir=output_dir,
+            seed=args.seed,
+        )
+        print(
+            f"E24 result: "
+            f"K_star={result.K_star} (K_true={result.K_ground_truth}) "
+            f"hamming={result.extracted_hamming_normalised:.4f} "
+            f"nll_lift={result.holdout_nll_improvement_per_token:+.4f} "
+            f"purity={result.cluster_purity:.4f} "
+            f"phase_a_hamming={result.phase_a_hamming_normalised:.4f} "
+            f"total_s={result.total_wall_clock_seconds:.2f} "
+            f"throughput={result.extraction_throughput_steps_per_sec:.1f} "
             f"peak_mem_kb={result.peak_memory_kb:.0f}"
         )
         print(f"run_id: {run_id}  output: {output_dir}")
