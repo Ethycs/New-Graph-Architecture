@@ -113,11 +113,48 @@ This is a load-bearing reframing of the proposal's universality claim. The claim
 - **(b) "Extraction recovers the FSM at Hamming ≤ 0.05 from the substrate"** — falsified on 5/5 grammars on **both** frozen and trained substrates *when the encoder is frozen by architecture*.
 - **(c) "A trained-from-scratch encoder recovers the FSM"** — UNTESTED; the natural next move is Wave C, where the encoder is the trainable component.
 
+### Wave C — trained-from-scratch encoder; substrate jumps but strict bar still misses
+
+Built `e26_extraction_trained_encoder.py`: a fully trainable two-hidden-layer MLP encoder, state-conditioned input `(token_features ⊕ one-hot(current_state))`, trained from scratch on next-FSM-state prediction for 50 epochs. Harvest is the second hidden layer's post-ReLU output. Ran both **free-K** (BIC over `[V-5, V+5]`) and **forced K=V** variants on all 5 grammars.
+
+| grammar | V | enc_acc | free K★ | free purity / Hamming | forced K=V purity / Hamming |
+|---|---:|---:|---:|---|---|
+| listops | 11 | 0.979 | 15 (over) | 0.965 / 1.0 (sentinel) | **0.944 / 0.240** |
+| python_expr | 14 | 0.967 | 19 (over) | 0.834 / 1.0 (sentinel) | 0.807 / 0.311 |
+| python_big | 24 | 0.980 | 29 (over) | 0.725 / 1.0 (sentinel) | 0.683 / 0.319 |
+| json | 26 | 0.947 | 31 (over) | 0.778 / 1.0 (sentinel) | **0.775 / 0.157** |
+| python_control | 37 | 0.989 | 40 (over) | 0.711 / 1.0 (sentinel) | 0.675 / 0.184 |
+| **mean** | — | **0.972** | — | **0.803 / —** | **0.777 / 0.242** |
+
+**Key deltas vs Wave B (frozen substrate):**
+
+- Encoder train accuracy: 0.49 (state-unconditioned MLP) → 0.97 (state-conditioned MLP)
+- Mean cluster purity: 0.420 → **0.803** (frozen → trained); **14.9× chance**
+- Mean held-out NLL improvement: +0.757 → **+1.516** nat/token
+- Mean Hamming at forced K=V: 1.0 (sentinel) → **0.242**
+
+**Tier 2 strict Hamming ≤ 0.05 bar: 0 / 5 grammars met under either free-K or forced K=V.** A trained encoder is necessary but not sufficient for the strict bar.
+
+**Three structural barriers surfaced:**
+
+1. **K-selection over-clusters trained substrates.** BIC's `p log N` penalty does not catch the trained encoder's tendency to spawn sub-clusters within each FSM state. Mean K★ exceeds V by 3-5 on every grammar. **K-selection cannot be done by BIC alone on a high-quality trained substrate.**
+2. **Cluster purity ceiling at K=V is ~77%.** Even when K is forced to V exactly, ~23% of steps end up in clusters whose majority FSM state is wrong. The encoder learned `(token, current_state)` jointly; clustering at K=V cannot disentangle the two without further structure.
+3. **Forced-K=V Hamming 0.157–0.319 across grammars.** Mean 0.242 = 5× the 0.05 strict bar. With cluster purity at 77%, transition counts pick up false edges (steps misclustered into adjacent states create transitions that don't exist in the gold FSM); also, with 80 programs the corpus may not traverse every legal edge in the gold FSM, creating false negatives even at perfect clustering.
+
+**The architectural conclusion.** The proposal's universality claim splits into three sub-claims and Phase 20 nails the bound on each:
+
+- **(a) "the pipeline runs end-to-end across substrates"** — confirmed on 5/5 grammars under frozen, TPN-trained, and Wave-C-trained substrates. Sub-3-second CPU wall-clock on every grammar.
+- **(b) "extraction recovers the FSM at Hamming ≤ 0.05 from a frozen-encoder substrate"** — falsified on 5/5 (Wave B frozen and Wave-B-with-Phase-B-training collapse to identical results).
+- **(c) "a trained-from-scratch encoder unlocks the strict bar"** — falsified on 5/5 at this scale and training budget. The trained encoder *materially improves* substrate quality (purity 0.42 → 0.80, NLL lift +0.76 → +1.52 nat/token), but the strict Hamming bar requires more than substrate quality: it requires either an encoder explicitly trained to be FSM-state-discriminating (not (state, token)-discriminating), or a post-clustering merge step that consolidates sub-clusters within each FSM state.
+
+The honest reframing: **TPN is a calibrated symbolic interpretation layer over a given encoded substrate, not a universal structure-extraction primitive at the strict-Hamming level**. The substrate determines extractability; the symbolic stack adds audit, σ-routing, and posterior calibration ON TOP. This matches the architecture's original commitments and is a sharpening of the proposal's claim, not a refutation.
+
 ### What's next
 
-- **Wave C**: train a small encoder (or a transformer) on a single grammar from scratch (no frozen-projection floor) and rerun extraction on its mid-layer activations. The proposal's decisive Tier 2 test.
-- **Plumbing follow-up**: investigate whether `TorchEnergyTrainer.forward` should consume `_readout_heads` (currently registered but unused). If the readout was intended to participate in the energy / KL term, this is a latent bug; if not, the readout's role in the architecture needs clarification.
-- **Multi-seed bootstrap on Wave-B**: the current 5-grammar result is single-seed; a 5-seed bundle would tell us whether K-selection's under-clustering on the big grammars is stable across seeds.
+- **Cluster-merge post-processor**: take the over-clustered free-K extraction, merge clusters whose transition profiles are near-identical (same outgoing distribution); see if Hamming drops under 0.05. The natural next mathematical move.
+- **Encoder trained on current-state prediction with history** (a parser-style task): if the encoder's hidden state is forced to encode FSM state directly (not (state, token)), clustering at K=V should give purity ~1.0 and Hamming under 0.05. Requires a recurrent encoder.
+- **Wave D / Tier 3**: extract from a pretrained transformer (small GPT-2 on Python source) and ask whether the architecture can find ANY structure in its activations.
+- **Plumbing follow-up**: investigate `TorchEnergyTrainer.forward`'s missing readout consumption (discovered in Wave B trained substrate).
 
 ## 2026-05-05 — Phase 19B — self-supervised diagnostic discovery: the architecture recovers the medical taxonomy from symptom co-occurrence alone
 
