@@ -59,11 +59,36 @@ We have not yet run the multi-grammar Tier-1 bundle (ListOps, python_expr, JSON,
 
 Wave A: 481 passed, 8 xfailed, 1 pre-existing E0 env-flake. Wave B adds 6 new e2e tests on E25, all green; aggregate atom census still green. Total tests in repo: 453 collected (E24 + E25 added 34 across unit + e2e).
 
+### Wave-B follow-up — 5-grammar Tier 1 sweep on the frozen-encoder substrate
+
+Refactored `e25_extraction_torch.py` to dispatch over five grammars via `GRAMMAR_DISPATCH` (listops → python_expr → python_big → json → python_control). Wrote `scripts/phase20_e25_grammar_sweep.py`; ran the full sweep at seed 42 on the frozen-encoder substrate in 0.87 s end-to-end:
+
+| grammar | V | K★ | cluster_purity | strict Hamming | NLL lift / token | n_steps |
+|---|---:|---:|---:|---:|---:|---:|
+| listops | 11 | 16 (over) | **0.6319** (6.95× chance) | 1.0 (sentinel) | +0.0258 | 144 |
+| python_expr | 14 | 10 (under) | 0.4386 (6.14× chance) | 1.0 (sentinel) | +0.4500 | 1612 |
+| python_big | 24 | 22 (under) | 0.3553 (8.53× chance) | 1.0 (sentinel) | +1.0148 | 2066 |
+| json | 26 | 21 (under) | 0.3624 (9.42× chance) | 1.0 (sentinel) | +0.9500 | 643 |
+| python_control | 37 | 33 (under) | 0.3110 (11.51× chance) | 1.0 (sentinel) | **+1.3447** | 1733 |
+| **mean** | 22.4 | — | **0.4198 (7.79× chance)** | — | **+0.757** | — |
+
+**Headline outcomes:**
+
+- **Tier 1 strict Hamming ≤ 0.05 bar: 0 / 5 grammars met.** No grammar's K-selection lands on K★ = V under BIC on the frozen-encoder substrate. K-selection error is small in magnitude on the four big grammars (|K★ − V| ∈ {2, 4, 4, 5}) and a single over-cluster on the smallest grammar (listops 16 vs 11).
+- **Mean cluster purity 7.79× chance on all 5 grammars.** Decisively above the noise floor on every grammar.
+- **Mean held-out NLL improvement +0.757 nat/token** vs a uniform-chain baseline. NLL lift grows with grammar size: listops +0.026, python_expr +0.450, python_big +1.015, json +0.950, python_control +1.345.
+
+**Cross-grammar pattern: K★ ≠ V on the frozen substrate, in either direction.** The smallest grammar (listops, V=11) over-clusters at K★=16, while the four bigger grammars (V ∈ {14, 24, 26, 37}) under-cluster by ≈2–5. BIC's `p log N` penalty interacts with the per-grammar n_steps: listops has only 144 steps total (the BIC penalty per cluster is small, K★ rises), while python_control has 1733 steps (the penalty bites, K★ stays under V). This is a finding about BIC's behaviour at small N rather than about the pipeline; it is *also* a finding about the substrate.
+
+**Architectural reading.** The proposal's universality hypothesis is **partially supported on the frozen-encoder substrate**: token-level features alone, projected through a random encoder, produce clusters that are 7.79× chance pure and an extracted transition matrix that beats uniform chain by +0.76 nat/token, on every grammar. But **exact structural recovery (the strict Hamming ≤ 0.05 bar) fails on every grammar at this substrate**. The architectural prediction had two parts: (a) the pipeline runs end-to-end on real grammars — confirmed across 5 grammars at sub-second wall-clock; (b) the extracted graph matches the hand-authored graph at Hamming ≤ 0.05 — falsified at this substrate for every grammar. Part (a) is the "machinery works" claim; part (b) is the "frozen random projection is enough" claim. Only part (a) is supported.
+
+The natural follow-up is **Wave-B-with-trained-encoder**: harvest from an intermediate `TypedReadoutTorch` layer after a real Phase-B training pass on the same grammar. The trained substrate is the architecture's actual representation — not the random-projection floor — and the proposal's strict Hamming bar is reserved for it. If Hamming drops below 0.05 with a trained encoder, the universality hypothesis earns its keep at the strict bar; if not, the architecture's claim is bounded by the K-selection criterion's small-N behaviour. Wave C (an external transformer trained on the same data) follows.
+
 ### What's next
 
-- **Wave B follow-up**: extend `e25_extraction_torch.py` to a multi-grammar sweep (ListOps, python_expr, JSON, control flow Python) with multi-seed bootstrap.
-- **Wave B with trained encoder**: harvest from an intermediate `TypedReadoutTorch` layer **after** a real Phase-B training pass; the trained substrate is the architecture's actual representation, not the frozen-random floor.
-- **Wave C**: train a small (~10M-param) transformer on python_big from scratch and rerun extraction on its mid-layer activations. This is the proposal's decisive Tier 2 test.
+- **Wave B with trained encoder**: harvest from an intermediate `TypedReadoutTorch` layer after a real Phase-B training pass; rerun the 5-grammar sweep. **This is the decisive next test.**
+- **Wave C**: train a small (~10M-param) transformer on python_big from scratch and rerun extraction on its mid-layer activations. The proposal's Tier 2 test.
+- **Multi-seed bootstrap on Wave-B**: the current 5-grammar result is single-seed; a 5-seed bundle would tell us whether K-selection's under-clustering on the big grammars is stable across seeds.
 
 ## 2026-05-05 — Phase 19B — self-supervised diagnostic discovery: the architecture recovers the medical taxonomy from symptom co-occurrence alone
 

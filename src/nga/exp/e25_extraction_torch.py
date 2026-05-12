@@ -71,7 +71,11 @@ from nga.drivers.config import Config
 from nga.drivers.jsonl_writer import JsonlWriter
 from nga.drivers.metrics_jsonl import MetricsRecord
 from nga.drivers.results_jsonl import ResultsRecord
+from nga.exp.dataset_json import generate_json_dataset
+from nga.exp.dataset_listops import generate_listops_dataset
 from nga.exp.dataset_python_big import generate_python_big_dataset
+from nga.exp.dataset_python_control import generate_python_control_dataset
+from nga.exp.dataset_python_expr import generate_python_expr_dataset
 from nga.exp.e24_graph_extraction import (
     _best_permutation_hamming,
     _compute_cluster_purity,
@@ -80,7 +84,71 @@ from nga.exp.e24_graph_extraction import (
     extract_graph,
 )
 
-__all__ = ["E25Result", "run_e25"]
+__all__ = ["E25Result", "run_e25", "GRAMMAR_DISPATCH"]
+
+
+# ---------------------------------------------------------------------------
+# Per-grammar dataset dispatch
+# ---------------------------------------------------------------------------
+#
+# Each grammar's dataset module has a *similar* but not identical
+# constructor and sample shape. The dispatch table normalises them so the
+# extraction runner can stay grammar-agnostic. Each entry exposes:
+#
+#   - ``loader(fsm, n, seed) -> dataset`` -- thin closure over the per-grammar
+#     ``generate_*_dataset`` function, with the grammar's natural "sample
+#     count" argument (n_programs / n_documents) mapped to ``n``.
+#   - ``sequence_id_attr`` -- the name of the per-sample integer field
+#     that groups consecutive transitions into one trajectory. python_*
+#     grammars use ``program_id``, listops uses ``sequence_id``, json uses
+#     ``document_id``.
+#   - ``fsm_yaml_path`` -- the canonical FSM fixture for the grammar.
+#   - ``default_n`` -- a Wave-B-friendly default sample count.
+
+_GRAMMAR_DISPATCH = {
+    "listops": {
+        "loader": lambda fsm, n, seed: generate_listops_dataset(
+            fsm=fsm, n_sequences=n, seed=seed
+        ),
+        "sequence_id_attr": "sequence_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/listops.fsm.yaml",
+        "default_n": 80,
+    },
+    "python_expr": {
+        "loader": lambda fsm, n, seed: generate_python_expr_dataset(
+            fsm=fsm, n_programs=n, seed=seed
+        ),
+        "sequence_id_attr": "program_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/python_expr.fsm.yaml",
+        "default_n": 80,
+    },
+    "python_big": {
+        "loader": lambda fsm, n, seed: generate_python_big_dataset(
+            fsm=fsm, n_programs=n, seed=seed
+        ),
+        "sequence_id_attr": "program_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/python_big.fsm.yaml",
+        "default_n": 80,
+    },
+    "json": {
+        "loader": lambda fsm, n, seed: generate_json_dataset(
+            fsm=fsm, n_documents=n, seed=seed
+        ),
+        "sequence_id_attr": "document_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/json.fsm.yaml",
+        "default_n": 80,
+    },
+    "python_control": {
+        "loader": lambda fsm, n, seed: generate_python_control_dataset(
+            fsm=fsm, n_programs=n, seed=seed
+        ),
+        "sequence_id_attr": "program_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/python_control.fsm.yaml",
+        "default_n": 80,
+    },
+}
+
+GRAMMAR_DISPATCH: dict[str, dict] = _GRAMMAR_DISPATCH
 
 
 @dataclass
@@ -124,29 +192,40 @@ def run_e25(
     run_id: str,
     output_dir: Path,
     seed: int,
-    n_programs: int = 80,
+    grammar: str = "python_big",
+    n_programs: int | None = None,
     encoder_hidden_dim: int = 32,
     k_selection_criterion: str = "bic",
     K_range_pad: int = 5,
     holdout_fraction: float = 0.2,
 ) -> E25Result:
-    """Tier 1 sanity extraction on the python_big grammar.
+    """Tier 1 sanity extraction on one of five grammars.
 
     Pipeline:
-      1. Generate the python_big dataset (``generate_python_big_dataset``).
+      1. Generate the dataset for the chosen grammar via the dispatch
+         table (``GRAMMAR_DISPATCH``).
       2. Encode every step's feature vector via ``FrozenEncoderTorch``;
          harvest into a ``(N_total_steps, embedding_dim)`` matrix.
       3. Run ``extract_graph`` with ``K_range`` centred on
-         ``V = fsm.n_vertices``.
+         ``V = fsm.vertex_count``.
       4. Permute the extracted legality matrix to align with the
          ground-truth FSM and report normalised Hamming.
 
     The ``config`` and ``ablation`` arguments are CLI-symmetry only.
+    Pass ``grammar`` to switch grammars; defaults to ``python_big`` for
+    backwards compatibility with the original Wave-B single-grammar run.
     """
     del config, ablation
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    grammar_label = "python_big"
+    if grammar not in _GRAMMAR_DISPATCH:
+        raise ValueError(
+            f"unknown grammar {grammar!r}; expected one of "
+            f"{sorted(_GRAMMAR_DISPATCH.keys())}"
+        )
+    dispatch = _GRAMMAR_DISPATCH[grammar]
+
+    grammar_label = grammar
     V = fsm.vertex_count
     K_min = max(2, V - K_range_pad)
     K_max = V + K_range_pad
@@ -156,11 +235,8 @@ def run_e25(
 
     # ---- Phase 1: dataset + harvest.
     t1 = time.perf_counter()
-    train_ds = generate_python_big_dataset(
-        fsm=fsm,
-        n_programs=n_programs,
-        seed=seed,
-    )
+    n = int(n_programs) if n_programs is not None else int(dispatch["default_n"])
+    train_ds = dispatch["loader"](fsm, n, seed)
     embedding_dim = int(train_ds.X.shape[1])
     encoder = FrozenEncoderTorch(
         input_dim=embedding_dim,
@@ -170,10 +246,12 @@ def run_e25(
     )
     encoder.fit(train_ds.X)
 
-    # Group rows by their program_id so transition counting respects
-    # program boundaries; rows arrive in time order within each program.
+    # Group rows by their per-sample sequence id so transition counting
+    # respects program boundaries; rows arrive in time order within each
+    # sequence.
+    seq_attr = dispatch["sequence_id_attr"]
     program_ids = np.asarray(
-        [s.program_id for s in train_ds.samples], dtype=np.int64
+        [int(getattr(s, seq_attr)) for s in train_ds.samples], dtype=np.int64
     )
 
     Z = encoder.encode(train_ds.X).astype(np.float64)
