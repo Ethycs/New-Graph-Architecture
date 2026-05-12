@@ -63,14 +63,25 @@ from pathlib import Path
 
 import numpy as np
 
+from nga.arch.forward_backward import (
+    bayesian_m_step_beta,
+    expected_counts_observed,
+)
 from nga.arch.frozen_encoder_torch import FrozenEncoderTorch
 from nga.arch.graph_fsm import GraphFSM
 from nga.arch.hidden_state_harvester import HiddenStateHarvester
+from nga.arch.torch_energy_trainer import TorchEnergyTrainer, TorchTrainerConfig
+from nga.arch.typed_readout_torch import TypedReadoutTorch
 from nga.drivers.ablation_flags import AblationTuple
 from nga.drivers.config import Config
 from nga.drivers.jsonl_writer import JsonlWriter
 from nga.drivers.metrics_jsonl import MetricsRecord
 from nga.drivers.results_jsonl import ResultsRecord
+
+try:  # Optional torch dependency; the trained substrate requires it.
+    import torch
+except ImportError:  # pragma: no cover - exercised only on torch-less envs
+    torch = None  # type: ignore[assignment]
 from nga.exp.dataset_json import generate_json_dataset
 from nga.exp.dataset_listops import generate_listops_dataset
 from nga.exp.dataset_python_big import generate_python_big_dataset
@@ -184,6 +195,160 @@ def _peak_memory_kb() -> float:
         return 0.0
 
 
+# ---------------------------------------------------------------------------
+# Trained-substrate helper (Wave B follow-up)
+# ---------------------------------------------------------------------------
+#
+# When ``use_trained_substrate=True`` the runner trains a TorchEnergyTrainer
+# on the dataset for ``n_train_epochs`` epochs, then captures the trained
+# intermediate hidden representation by registering a forward hook on the
+# first ``nn.Linear`` of the typed readout's only head. The hook captures
+# the pre-ReLU output -- a trained ``hidden_dim``-wide representation of
+# every step's encoded input -- which is what feeds the final classifier
+# logits. Clustering on this trained representation is the architecture's
+# best stab at "the trained model's actual internal state at this step."
+
+
+def _per_class_centroid_init(
+    Z: np.ndarray, y: np.ndarray, n_states: int, dim: int
+) -> np.ndarray:
+    """Per-class mean of encoded features, scaled into the Poincare ball.
+
+    Mirrors the helper in :mod:`nga.exp.e18_python_big`: each prototype is
+    initialised at the centroid of its labelled members, rescaled into the
+    open ball if its norm exceeds 0.5. Empty classes get a small random
+    init.
+    """
+    proto = np.zeros((n_states, dim), dtype=np.float32)
+    rng = np.random.default_rng(0)
+    for s in range(n_states):
+        members = Z[y == s]
+        if members.shape[0] >= 1:
+            mu = np.asarray(members.mean(axis=0), dtype=np.float32)
+        else:
+            mu = (0.01 * rng.standard_normal(dim)).astype(np.float32)
+        norm = float(np.linalg.norm(mu))
+        if norm > 0.5:
+            mu = mu * (0.5 / max(norm, 1e-6))
+        proto[s] = mu
+    return proto
+
+
+def _train_and_harvest_intermediate(
+    train_ds,
+    fsm: GraphFSM,
+    encoder: FrozenEncoderTorch,
+    *,
+    seed: int,
+    n_train_epochs: int,
+    encoder_hidden_dim: int,
+    readout_hidden_dim: int,
+    trainer_lr: float,
+    grad_clip: float,
+) -> tuple[np.ndarray, dict[str, float]]:
+    """Train a torch trainer on the dataset, then harvest the typed
+    readout's first-Linear pre-ReLU output as the trained substrate.
+
+    Returns ``(hidden_states, info)`` where ``hidden_states`` is a
+    ``(N_total_steps, readout_hidden_dim)`` float64 matrix and ``info``
+    carries diagnostic numbers (final_loss, loss_decrease, ...).
+    """
+    if torch is None:
+        raise ImportError(
+            "torch is required for the trained substrate; "
+            "install via `pixi add pytorch`"
+        )
+
+    embedding_dim = int(train_ds.X.shape[1])
+    n_states = int(fsm.vertex_count)
+
+    Z = encoder.encode(train_ds.X).astype(np.float32)
+    proto_init_np = _per_class_centroid_init(
+        Z, train_ds.y_next, n_states, embedding_dim
+    )
+    proto_init = torch.from_numpy(proto_init_np)
+
+    # Phase-A seed for the posterior (mirrors E18 step 2).
+    counts = expected_counts_observed(
+        train_ds.y_next.astype(np.int64), n_states
+    )
+    alpha_seed, beta_seed = bayesian_m_step_beta(
+        counts.astype(np.float64),
+        expected_counts_neg=None,
+        prior_alpha=1.0,
+        prior_beta=1.0,
+    )
+
+    readout = TypedReadoutTorch(
+        type_ids=["default"],
+        n_classes=n_states,
+        input_dim=embedding_dim,
+        hidden_dim=readout_hidden_dim,
+        n_epochs=1,
+        lr=1e-3,
+        seed=int(seed),
+    )
+
+    trainer_config = TorchTrainerConfig(
+        lr=trainer_lr,
+        lambda_kl=1.0,
+        grad_clip=grad_clip,
+    )
+    trainer = TorchEnergyTrainer(
+        n_states=n_states,
+        embedding_dim=embedding_dim,
+        encoder_output_dim=embedding_dim,
+        prototype_init=proto_init,
+        encoder=encoder,
+        readout=readout,
+        posterior_alpha_init=torch.from_numpy(
+            np.asarray(alpha_seed, dtype=np.float32)
+        ),
+        posterior_beta_init=torch.from_numpy(
+            np.asarray(beta_seed, dtype=np.float32)
+        ),
+        config=trainer_config,
+        seed=int(seed),
+    )
+
+    # Train.
+    rng = np.random.default_rng(int(seed))
+    Z_t = torch.from_numpy(Z)
+    cur_t = torch.from_numpy(train_ds.current_states.astype(np.int64))
+    nxt_t = torch.from_numpy(train_ds.y_next.astype(np.int64))
+    n = Z_t.shape[0]
+    epoch_losses: list[float] = []
+    for _epoch in range(int(n_train_epochs)):
+        perm = rng.permutation(n)
+        idx = torch.from_numpy(perm.astype(np.int64))
+        out = trainer.step(Z_t[idx], cur_t[idx], nxt_t[idx])
+        epoch_losses.append(float(out["loss"].item()))
+
+    # Harvest the **prototype-distance vector** at each step. The
+    # prototypes are gradient-trained by ``TorchEnergyTrainer.forward``
+    # (which the readout heads are NOT -- they are registered as Adam
+    # parameters but do not participate in the forward computation
+    # graph). The Poincare distance from a step's encoded representation
+    # to each of the V trained prototypes IS the architecture's notion of
+    # "how the model sees this token relative to every FSM state," and
+    # clustering it gives the model's actual partition of step semantics
+    # after training.
+    with torch.no_grad():
+        d_all = trainer.poincare_distance_torch(Z_t, trainer.prototypes)
+    hidden_states = d_all.detach().cpu().numpy().astype(np.float64)
+
+    info = {
+        "final_loss": float(epoch_losses[-1]) if epoch_losses else float("nan"),
+        "loss_decrease_first_to_last_epoch": (
+            float(epoch_losses[0] - epoch_losses[-1])
+            if len(epoch_losses) >= 2
+            else 0.0
+        ),
+        "n_train_epochs": float(n_train_epochs),
+    }
+    return hidden_states, info
+
+
 def run_e25(
     *,
     config: Config,
@@ -198,6 +363,11 @@ def run_e25(
     k_selection_criterion: str = "bic",
     K_range_pad: int = 5,
     holdout_fraction: float = 0.2,
+    use_trained_substrate: bool = False,
+    n_train_epochs: int = 10,
+    readout_hidden_dim: int = 32,
+    trainer_lr: float = 1e-2,
+    grad_clip: float = 5.0,
 ) -> E25Result:
     """Tier 1 sanity extraction on one of five grammars.
 
@@ -254,15 +424,28 @@ def run_e25(
         [int(getattr(s, seq_attr)) for s in train_ds.samples], dtype=np.int64
     )
 
-    Z = encoder.encode(train_ds.X).astype(np.float64)
+    if use_trained_substrate:
+        Z_raw, train_info = _train_and_harvest_intermediate(
+            train_ds,
+            fsm,
+            encoder,
+            seed=seed,
+            n_train_epochs=n_train_epochs,
+            encoder_hidden_dim=encoder_hidden_dim,
+            readout_hidden_dim=readout_hidden_dim,
+            trainer_lr=trainer_lr,
+            grad_clip=grad_clip,
+        )
+    else:
+        Z_raw = encoder.encode(train_ds.X).astype(np.float64)
+        train_info = {}
+
     harvester = HiddenStateHarvester.from_callable(
-        lambda i: Z[int(i)], per_sample_emits_sequence=False
+        lambda i: Z_raw[int(i)], per_sample_emits_sequence=False
     )
-    # Use the harvester's container shape but feed directly: we already
-    # have the encoded matrix in memory, so loop trivially.
-    harvest = harvester.harvest(range(Z.shape[0]))
-    # Re-label sample_index by program_id so transition counting groups
-    # all rows of a single program together.
+    harvest = harvester.harvest(range(Z_raw.shape[0]))
+    # Re-label sample_index by per-grammar sequence id so transition
+    # counting groups all rows of a single sequence together.
     harvest = type(harvest)(
         hidden_states=harvest.hidden_states,
         sample_index=program_ids,

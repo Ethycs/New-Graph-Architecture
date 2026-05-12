@@ -84,10 +84,39 @@ Refactored `e25_extraction_torch.py` to dispatch over five grammars via `GRAMMAR
 
 The natural follow-up is **Wave-B-with-trained-encoder**: harvest from an intermediate `TypedReadoutTorch` layer after a real Phase-B training pass on the same grammar. The trained substrate is the architecture's actual representation — not the random-projection floor — and the proposal's strict Hamming bar is reserved for it. If Hamming drops below 0.05 with a trained encoder, the universality hypothesis earns its keep at the strict bar; if not, the architecture's claim is bounded by the K-selection criterion's small-N behaviour. Wave C (an external transformer trained on the same data) follows.
 
+### Wave-B-with-trained-encoder follow-up — frozen vs trained collapses on this architecture
+
+Re-ran the 5-grammar sweep twice per grammar via `scripts/phase20_e25_frozen_vs_trained_sweep.py`: once with the frozen-random encoder (the Wave-B baseline above), once after Phase-B gradient training of the full TorchEnergyTrainer for 10 epochs, harvesting the trained **prototype-distance vector** as the substrate.
+
+| grammar | V | frozen K★ / purity / NLL | trained K★ / purity / NLL |
+|---|---:|---|---|
+| listops | 11 | 16 / 0.6319 / +0.0258 | 16 / **0.6319** / +0.0258 *(identical)* |
+| python_expr | 14 | 10 / 0.4386 / +0.4500 | 10 / **0.4386** / +0.4500 *(identical)* |
+| python_big | 24 | 22 / 0.3553 / +1.015 | 19 / **0.3548** / +0.890 |
+| json | 26 | 21 / 0.3624 / +0.9500 | 21 / **0.3624** / +0.9500 *(identical)* |
+| python_control | 37 | 33 / 0.3110 / +1.345 | 32 / **0.3110** / +1.322 |
+| mean | 22.4 | 0.4198 / +0.757 | **0.4197 / +0.727** |
+
+**Tier 1 strict Hamming ≤ 0.05: 0 / 5 grammars on BOTH substrates.** Mean delta on cluster purity: **−0.0001** (essentially zero). Mean delta on NLL lift: −0.030 nat/token (slightly worse, well within noise).
+
+**Why the substrates collapse.** Two structural reasons:
+
+1. **Prototype initialisation does the work.** `TorchEnergyTrainer` initialises prototypes via `_per_class_centroid_init`: each prototype $p_j$ is the centroid of $Z$ rows whose ground-truth state is $j$. The Poincaré distance from any $Z_i$ to $p_j$ is approximately $\|Z_i - \text{centroid}_j\|$, modulo the curved-vs-flat metric correction — and Voronoi tessellation by class centroids IS effectively what k-means finds on $Z$. Clustering the prototype-distance vector and clustering $Z$ directly give roughly the same partition because the k-means centroid structure was *born at proto-init*, before any training.
+
+2. **The encoder is frozen by construction.** Phase B training updates prototypes + log-odds bias + readout heads, but the *substrate's geometry* — the embedding space the encoder projects into — is fixed at seed init. K-means clusters in that geometry are determined entirely by the encoder; training the symbolic layers above cannot change them. (Side observation discovered during this experiment: the `TypedReadoutTorch` heads do not appear in `TorchEnergyTrainer.forward`'s computation graph at all; they are registered as Adam parameters but receive zero gradient. The trainer's `forward` computes energy from prototypes + Poincaré distance only, without ever calling the readout. This is a separate plumbing observation worth recording as future work.)
+
+**The architectural finding.** Under the TPN's "frozen encoder, all gradient flows through symbolic structure" commitment, **the substrate's clustering structure is a property of the encoder, not of the trained symbolic state**. Phase B can refine *what we predict* but cannot refine *where the clusters are*. The strict Hamming bar requires an encoder that adapts to the corpus, which by definition is not a TPN — it's the Wave C substrate (an encoder trained from scratch on the same data, no symbolic prior).
+
+This is a load-bearing reframing of the proposal's universality claim. The claim "the typed graph is latent in any trained substrate" splits:
+
+- **(a) "The pipeline runs end-to-end across substrates"** — confirmed on 5/5 grammars in 0.87 s (frozen) and 2.19 s (frozen + 10 epochs Phase B) per grammar.
+- **(b) "Extraction recovers the FSM at Hamming ≤ 0.05 from the substrate"** — falsified on 5/5 grammars on **both** frozen and trained substrates *when the encoder is frozen by architecture*.
+- **(c) "A trained-from-scratch encoder recovers the FSM"** — UNTESTED; the natural next move is Wave C, where the encoder is the trainable component.
+
 ### What's next
 
-- **Wave B with trained encoder**: harvest from an intermediate `TypedReadoutTorch` layer after a real Phase-B training pass; rerun the 5-grammar sweep. **This is the decisive next test.**
-- **Wave C**: train a small (~10M-param) transformer on python_big from scratch and rerun extraction on its mid-layer activations. The proposal's Tier 2 test.
+- **Wave C**: train a small encoder (or a transformer) on a single grammar from scratch (no frozen-projection floor) and rerun extraction on its mid-layer activations. The proposal's decisive Tier 2 test.
+- **Plumbing follow-up**: investigate whether `TorchEnergyTrainer.forward` should consume `_readout_heads` (currently registered but unused). If the readout was intended to participate in the energy / KL term, this is a latent bug; if not, the readout's role in the architecture needs clarification.
 - **Multi-seed bootstrap on Wave-B**: the current 5-grammar result is single-seed; a 5-seed bundle would tell us whether K-selection's under-clustering on the big grammars is stable across seeds.
 
 ## 2026-05-05 — Phase 19B — self-supervised diagnostic discovery: the architecture recovers the medical taxonomy from symptom co-occurrence alone
