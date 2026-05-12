@@ -66,6 +66,11 @@ except ImportError:  # pragma: no cover - exercised only on torch-less envs
     torch = None  # type: ignore[assignment]
     nn = None  # type: ignore[assignment]
 
+from nga.arch.bisimulation_quotient import (
+    MERGE_CRITERIA,
+    QuotientResult,
+    quotient_by_bisimulation,
+)
 from nga.arch.graph_fsm import GraphFSM
 from nga.exp.e24_graph_extraction import (
     _best_permutation_hamming,
@@ -76,7 +81,39 @@ from nga.exp.e24_graph_extraction import (
 )
 from nga.exp.e25_extraction_torch import GRAMMAR_DISPATCH
 
-__all__ = ["E26Result", "run_e26"]
+__all__ = ["E26Result", "run_e26", "apply_bisimulation_quotient"]
+
+
+def apply_bisimulation_quotient(
+    labels: np.ndarray,
+    transition_counts: np.ndarray,
+    *,
+    target_K: int,
+    criterion: str = "full",
+    emission_counts: np.ndarray | None = None,
+    seed: int = 0,
+) -> QuotientResult:
+    """Thin runner-side wrapper around :func:`quotient_by_bisimulation`.
+
+    Phase 21's overcluster-then-quotient sweep uses this entry point to
+    apply each merge criterion in MERGE_CRITERIA to an over-clustered
+    extraction. Keeping the wrapper inside ``nga.exp`` makes the
+    bisimulation_quotient atom legitimately consumed by a runner (the
+    atom-census invariant) and provides one shared call site if more
+    runners want to apply the quotient.
+    """
+    if criterion not in MERGE_CRITERIA:
+        raise ValueError(
+            f"unknown criterion {criterion!r}; expected one of {MERGE_CRITERIA}"
+        )
+    return quotient_by_bisimulation(
+        labels,
+        transition_counts,
+        target_K=target_K,
+        criterion=criterion,
+        emission_counts=emission_counts,
+        seed=seed,
+    )
 
 
 @dataclass

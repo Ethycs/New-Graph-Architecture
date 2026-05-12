@@ -149,11 +149,40 @@ Built `e26_extraction_trained_encoder.py`: a fully trainable two-hidden-layer ML
 
 The honest reframing: **TPN is a calibrated symbolic interpretation layer over a given encoded substrate, not a universal structure-extraction primitive at the strict-Hamming level**. The substrate determines extractability; the symbolic stack adds audit, σ-routing, and posterior calibration ON TOP. This matches the architecture's original commitments and is a sharpening of the proposal's claim, not a refutation.
 
+### Phase 21 — overcluster → bisimulation quotient; the gap is clustering, not extraction
+
+Built `nga/arch/bisimulation_quotient.py`: greedy agglomerative quotient under five behavioural-equivalence criteria (transition, emission, transition_plus_incoming, full, random). Ran the full sweep: train state-conditioned encoder per Wave C → overcluster at K_range = [V, V+8] under BIC → quotient down to target_K = V under each criterion → measure Hamming. Also computed **oracle Hamming** using ground-truth state labels directly to build the transition counts.
+
+| grammar | V | K★ over | forced K=V Hamming | oracle Hamming | quotient-transition Hamming | quotient-emission | quotient-full | quotient-random |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| listops | 11 | 19 | 0.240 | 0.041 | 0.314 | 0.256 | 0.289 | 0.265 |
+| python_expr | 14 | 22 | 0.311 | 0.041 | 0.311 | 0.393 | 0.321 | 0.408 |
+| python_big | 24 | 30 | 0.319 | 0.010 | 0.266 | 0.323 | 0.307 | 0.280 |
+| json | 26 | 30 | 0.157 | 0.021 | 0.176 | 0.170 | 0.186 | 0.188 |
+| python_control | 37 | 45 | 0.184 | 0.017 | 0.173 | 0.180 | 0.184 | 0.197 |
+| **mean** | — | — | **0.242** | **0.026** | **0.248** | **0.265** | **0.258** | **0.267** |
+
+**The decisive numbers.** Oracle Hamming (ground-truth state labels) averages **0.026** — under the 0.05 strict bar on 4 of 5 grammars (listops at 0.041 sits right at the bar; the other four are well below). So **the extraction-pipeline math is correct**; given the right partition, Phase A recovers the gold legality. The strict bar is achievable in principle.
+
+**But:** every quotient criterion lands in the 0.24-0.27 range — bitwise-close to forced K=V (0.24) and to **random merge** (0.27). The agglomerative quotient is **inert** at this scale: it does not pull Hamming meaningfully below the forced-K=V baseline and does not approach the oracle.
+
+**Why the quotient is inert (the sharpened architectural finding).** The state-conditioned MLP encoder learns `(token, current_state)` jointly. Its natural equivalence classes — the K★ ≈ V + 5 clusters BIC selects — are NOT FSM states; they are **(state, token-context) tuples**. Two clusters that represent the same FSM state but different recent tokens are not observationally equivalent under the criteria I tested: their outgoing transition distributions, incoming distributions, and emission distributions all *empirically differ* by the local token-conditional structure. The bisimulation quotient finds these clusters distinct (correctly, under its definition) and merges by minimum among bad options — close to what random merge gets.
+
+The substrate's natural Myhill-Nerode equivalence on observed behaviour is **finer than the FSM's**. Recovering the FSM via quotient requires **marginalising over the extra dimensions the encoder injected** — a different mathematical operation than "merge by similarity in observed transition distributions." Random merge does as well as structured merge because the structure both find is real but irrelevant to the gold FSM.
+
+**The reframing the experiment validates.** The proposal's universality claim, conditional on a state-sufficient substrate, splits cleanly into:
+
+1. **Representation condition (substrate quality):** the substrate must preserve enough state information AND the encoder's natural equivalence must coincide with the FSM partition. The trained MLP encoder we tested satisfies the first but **not the second** — its natural partition is at (state, token), not state alone.
+2. **Extraction condition (pipeline math):** Phase A + best-permutation Hamming recovers the gold legality from ground-truth labels at Hamming 0.026 ± 0.014. The pipeline is correct.
+3. **Quotient condition (equivalence-class identification):** behavioural quotienting by transition / emission similarity FAILS when the encoder's equivalence is finer than the target FSM. Recovering the FSM requires marginalising over the extraneous dimensions, not minimising L2 distance on observed marginals.
+
+**The architectural conclusion is therefore precise.** Universal graph extraction at the strict-Hamming level requires **a substrate whose natural equivalence classes ARE the target FSM states** — i.e., an encoder trained to be invariant to token-context within state. This is a *training-task* constraint, not a quotient-algorithm constraint. The bisimulation quotient is theoretically right (under its definition) but the equivalence relation it implements is the wrong one for recovering FSM-state structure from a state-conditioned encoder.
+
 ### What's next
 
-- **Cluster-merge post-processor**: take the over-clustered free-K extraction, merge clusters whose transition profiles are near-identical (same outgoing distribution); see if Hamming drops under 0.05. The natural next mathematical move.
-- **Encoder trained on current-state prediction with history** (a parser-style task): if the encoder's hidden state is forced to encode FSM state directly (not (state, token)), clustering at K=V should give purity ~1.0 and Hamming under 0.05. Requires a recurrent encoder.
-- **Wave D / Tier 3**: extract from a pretrained transformer (small GPT-2 on Python source) and ask whether the architecture can find ANY structure in its activations.
+- **Encoder trained on state prediction from trajectory prefix (recurrent)**: if the hidden state is forced to encode FSM state from history, clustering at K=V should give purity ~1.0 and Hamming near oracle. This is the Phase 22 candidate.
+- **Marginalise-by-token quotient**: instead of merging clusters whose transitions are similar, merge clusters whose token-marginalised transition distribution is similar. Conceptually right; concretely, group clusters by transition behaviour averaged across tokens, then merge.
+- **Honest write-up**: the publishable claim is now "TPN-style symbolic interpretation over a substrate, with audit + abstention + posterior calibration, where universality is bounded by the encoder's natural equivalence relation." Strong, defensible, useful.
 - **Plumbing follow-up**: investigate `TorchEnergyTrainer.forward`'s missing readout consumption (discovered in Wave B trained substrate).
 
 ## 2026-05-05 — Phase 19B — self-supervised diagnostic discovery: the architecture recovers the medical taxonomy from symptom co-occurrence alone
