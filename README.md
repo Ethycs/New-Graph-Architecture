@@ -5,8 +5,9 @@ A reference implementation of the **Typed Protocol Network (TPN)** — a structu
 For the model class definition: [`docs/model-class.md`](docs/model-class.md).
 For the foundational mathematics: `Mathematics.md`.
 For the running development log: `research_log.md`.
-For the paper-shaped synthesis across all 5 grammars + the real-world medical domain: [`docs/results.md`](docs/results.md).
-For incoming research proposals: [`docs/proposals/`](docs/proposals/).
+For the paper-shaped synthesis across all 5 grammars + the real-world medical domain + the Phase 20–23 universality test: [`docs/results.md`](docs/results.md).
+For incoming and evaluated research proposals: [`docs/proposals/`](docs/proposals/).
+For Phase 22–23 running log (probe + PCG-X arc): [`research_log2.md`](research_log2.md).
 
 ## What's been built
 
@@ -36,6 +37,12 @@ For the per-phase honest read on what worked, what didn't, and why: `research_lo
 ## The 5-grammar finding
 
 σ_structural_uplift across grammars (mean ± std, n=5 seeds): JSON **+0.067 ± 0.047** > Python expr **+0.059 ± 0.070** > control flow Python **+0.007 ± 0.026** > Python big **−0.012 ± 0.024** > ListOps **−0.088 ± 0.047**. The ranking tracks the **distribution of structural ambiguity** rather than grammar size — JSON's seven legal value-position continuations scattered through every document beat ListOps's single ambiguity (which the depth tracker collapses) and python_big's rare 2-way call-vs-variable site. Control flow Python's `S0_after_if_body` branching site (where `else` vs a new statement has no stack disambiguation) shifts the uplift positive but only barely; mean is positive, 3/5 seeds positive. The architectural prediction (more ambiguity → positive σ_structural) held but is not magnitude-invariant. See [`docs/results.md`](docs/results.md) for the full synthesis.
+
+## Phase 20–23 — universality test and the PCG-X reframing
+
+The full graph-extraction proposal (`docs/proposals/graph-extraction.md`) was executed across Phases 20, 21, 22a, 23, 23b, and 23d. **Strict-Hamming universal graph extraction is encoder-bounded, not pipeline-bounded**: under ground-truth state labels, oracle Hamming is 0.026 (meets the 0.05 strict bar on 4/5 grammars), but no substrate tested — frozen-random, Phase-B-trained, trainable-from-scratch MLP, or small transformer — brings extracted Hamming below 0.15 on any of the 5 grammars. The bisimulation quotient is statistically indistinguishable from random merge because the substrate's natural equivalence classes are `(state, token)` tuples, not FSM states; the partition-function probe rises purity by ~10pp without closing the Hamming gap.
+
+The reframing — **Predictive Control Graph Extractor (PCG-X)** — replaces the deliverable. Partition by `argmax(next-state-head)` upstream rather than recovering the partition via quotient downstream; emit a `control_graph.json` artefact with regime nodes (`support / failure_rate / entropy_mean / mean_margin / dominant_current_state / purity`) and edges (`probability / Beta(α, β) / count`). The mantra is **partition by prediction, merge by behavior, control by intervention**. PCG-X is operational on both a state-conditioned MLP substrate (mean purity 0.79, 14.9× chance) and a small causal transformer trained from scratch (mean purity 0.66, with substrate next-token accuracy 0.63); substrate quality is the binding constraint and PCG-X faithfully reflects it. See [`docs/results.md`](docs/results.md) §11 for the full synthesis and the [graph-extraction proposal's Decision section](docs/proposals/graph-extraction.md#decision--outcome-recorded-2026-05-12) for the pre-registered-hypothesis verdict table.
 
 ## Phase 19B — self-supervised structural discovery on real medical data
 
@@ -128,6 +135,12 @@ aggregate.py      cross-run metrics aggregator with PASS/FAIL verdicts
 | E21 | control flow Python: `if` / `else` / `while` (37-state FSM, the largest grammar) |
 | E22 | diagnostic supervised (Kaggle disease-symptom; structurally green, semantically failed — see `research_log.md`) |
 | E23 | diagnostic self-supervised (Phase 19B; recovers medical taxonomy at ARI 0.82 / NMI 0.97 without labels) |
+| E24 | universal graph extraction synthetic sanity (Phase 20 Wave A; K★=K_true exactly, Hamming 0.04) |
+| E25 | universal graph extraction on torch substrate (Phase 20 Wave B; frozen + Phase-B-trained variants, 5 grammars) |
+| E26 | universal graph extraction on trained-from-scratch MLP (Phase 20 Wave C; mean purity 0.80 at K=V) |
+| E27 | partition-function probe encoder (Phase 22a; mechanism validated, strict bar still missed) |
+| E28 | Predictive Control Graph Extractor on MLP substrate (Phase 23 MVP; emits `control_graph.json`) |
+| E29 | PCG-X on small causal transformer trained from scratch (Phase 23d; falsified the adversarial-head prediction honestly) |
 
 ## The atom census as executable specification
 
@@ -139,7 +152,7 @@ Run it: `pixi run -e dev python -m pytest tests/integration/test_atom_census.py 
 
 ## Test suite
 
-Current state: **447 collected, 438 passed, 8 xfailed, 1 pre-existing E0 env-flake** for documented reasons (the q10 σ_uplift bar on margin-saturated grammars; E7 reservoir-vs-end-to-end accuracy at natural noise). Reproduce: `pixi run -e dev python -m pytest tests/ -q`.
+Current state: **501 collected, 500 passed, 8 xfailed, 1 pre-existing E0 env-flake** for documented reasons (the q10 σ_uplift bar on margin-saturated grammars; E7 reservoir-vs-end-to-end accuracy at natural noise). Reproduce: `pixi run -e dev python -m pytest tests/ -q`.
 
 ## What this is good at
 

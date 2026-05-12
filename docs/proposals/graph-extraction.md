@@ -1,8 +1,9 @@
 # Universal Graph Extraction: Recovering Typed Protocol Networks from Homogeneously Trained Substrates
 
-**Status:** proposed
-**Phase target:** Phase 20
+**Status:** **evaluated — H₀ falsified; reframed and shipped as PCG-X (see Decision / Outcome below)**
+**Phase target:** Phase 20 (executed across Phases 20, 21, 22a, 23, 23b, 23d)
 **Date posted:** 2026-05-08
+**Decision recorded:** 2026-05-12
 **Author:** TPN research team
 
 ## Abstract
@@ -128,5 +129,66 @@ The proposal is judged a success iff Tier 1 AND Tier 2 acceptance criteria are m
 ## See also
 
 - [results.md §10](../results.md) — Phase 19B self-supervised structural discovery (the closest precedent in this repository).
+- [results.md §11](../results.md) — Phase 20–23 universality test + PCG-X reframing (the executed version of this proposal).
 - [model-class.md](../model-class.md) — TPN model class definition.
-- `research_log.md` — running phase log; the Phase 20 entry that consumes this proposal will reference this file.
+- `research_log.md` — Phases 0–21 (waves A, B, B-trained, C, 21 quotient).
+- `research_log2.md` — Phases 22–23 (partition probe, PCG-X MVP, adversarial head, transformer substrate).
+
+---
+
+## Decision / Outcome (recorded 2026-05-12)
+
+The proposal was executed in full across Phases 20, 21, 22a, 23, 23b, and 23d. Below is the verdict on each pre-registered claim and the architectural reframing the experiments licensed.
+
+### Pre-registered hypothesis status
+
+**H₀ — "the typed graph is latent in arbitrary trained substrates and the strict Hamming ≤ 0.05 bar is achievable":** **falsified on all five grammars under every substrate tested.**
+
+| substrate | strict-bar achievement | mean Hamming |
+|---|---|---:|
+| Frozen-random encoder (Wave B) | 0/5 | 1.0 sentinel (K★ ≠ V) |
+| Frozen encoder + Phase B trained symbolic stack (Wave B-trained) | 0/5 | bitwise identical to frozen on 3/5 |
+| Trained MLP encoder, forced K=V (Wave C) | 0/5 | 0.242 |
+| Trained MLP + bisimulation quotient (Phase 21, all 4 criteria) | 0/5 | 0.25–0.27 (≈ random merge) |
+| Trained MLP + partition-function probe (Phase 22a) | 0/5 | 0.227 |
+| Small transformer trained from scratch (Phase 23d) | 0/5 | n/a (K_argmax ≠ V) |
+
+**Oracle Hamming under ground-truth state labels: 0.026 — meets the strict bar on 4/5.** The pipeline math is correct; the substrate is the binding constraint.
+
+**H₁ — "there exists a substrate family where extraction systematically fails":** **confirmed.** Every substrate that does not have FSM-state injected into its input fails the strict bar, and even substrates that do (the state-conditioned MLP) fail because their natural equivalence classes are `(state, token)` tuples rather than FSM states.
+
+### Tier acceptance
+
+| Tier | Substrate | Acceptance bar | Achieved? |
+|---|---|---|---|
+| 1 Sanity | TorchEnergyTrainer (our own substrate) | Hamming ≤ 0.05 on ≥ 3/5 grammars | **No.** 0/5 on either frozen or Phase-B-trained. |
+| 2 External | Small transformer trained from scratch | Hamming ≤ 0.10 AND NLL lift ≥ 1 nat/token on ≥ 3/5 | **Partial.** Held-out NLL lift achieved on most grammars but Hamming target not met. |
+| 3 Stress | Pretrained GPT-2-small on real Python | NLL lift ≥ 0.5 nat/token on Python corpus | **Untested.** Deferred during the reframing. |
+
+### The architectural reframing licensed by the experiments
+
+The proposal as originally posed asked the wrong question. The right question, supported by the experiments, is:
+
+> Stop trying to recover the exact hand-authored graph from arbitrary hidden states. Build a **practical regime / control-graph extractor** from an arbitrary network's activations.
+
+The implementation — the **Predictive Control Graph Extractor (PCG-X)** — landed across Phase 23 (E28 on the state-conditioned MLP substrate; E29 on the small-transformer substrate). It produces a `control_graph.json` artefact carrying regime nodes (`support / failure_rate / entropy_mean / mean_margin / dominant_current_state / purity`) and edges (`probability / Beta(α, β) / count`). The mantra is **partition by prediction, merge by behavior, control by intervention**; the first two legs are operational, the third (interventions) is the documented Phase 23c follow-up.
+
+### What the proposal contributed despite H₀ failing
+
+1. **Built the extraction pipeline as a generic operator.** `hidden_state_harvester`, `bayesian_nonparametric_k`, the six-step `extract_graph`, and the multi-grammar `GRAMMAR_DISPATCH` are reusable infrastructure that PCG-X (and future regime-analysis work) sits on top of. The atom census enforces their integration.
+2. **Established the substrate-is-the-bottleneck finding empirically.** Frozen vs Phase-B-trained collapse to bitwise-identical results on 3/5 grammars; the substrate's clustering geometry is fixed at seed init by the encoder's geometry. This is a *concrete* architectural claim that the original proposal would have only conjectured.
+3. **Identified the Myhill–Nerode misalignment.** The bisimulation-quotient experiments revealed that the substrate's natural equivalence classes are `(state, token)` tuples, not FSM states; similarity-based agglomerative merge cannot fix this. The architectural conclusion: recovering FSM-state structure requires the partition to be done at the right level upstream (PCG-X's argmax-of-next-state), not via post-hoc quotienting.
+4. **Validated the oracle Hamming floor (0.026).** Phase 21's oracle measurement is what made the encoder-bound diagnosis crisp. Without it, every other failure could be blamed on the extraction pipeline.
+5. **Found one architectural mechanism that works (partition-by-prediction)** and one that does not (adversarial token head). Phase 23's argmax partition produces FSM-aligned cells without an explicit quotient; the adversarial head, predicted positive on the transformer substrate, was falsified at Phase 23d.
+
+### What is retired and what survives
+
+- **Retired**: the "universal graph extraction at strict Hamming bar" framing. Status updates from "proposed" to "evaluated and falsified, with reframing."
+- **Survives**: the extraction-pipeline atoms (`hidden_state_harvester`, `bayesian_nonparametric_k`, `extract_graph`, `bisimulation_quotient`, `predictive_projection`, `small_transformer`). All retained as load-bearing arch atoms.
+- **Reframed**: the architectural deliverable is PCG-X, not the universal extractor. The new contract is "extract a useful control graph of regimes the substrate actually visits," which the experiments demonstrate is achievable.
+
+### See
+
+- [results.md §11](../results.md) — the full paper-shaped synthesis of the Phase 20–23 arc and the architectural conclusions.
+- `research_log2.md` — Phase 22a + 23 + 23b + 23d detail with sweep tables.
+- `research_log.md` — Phase 20 + 21 detail.
