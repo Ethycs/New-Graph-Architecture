@@ -30,9 +30,18 @@ Tasks where you need *all* of: hard structural constraint, hierarchical / cyclic
 ## What a TPN is not for
 
 - Open-ended generation. No learned generation policy; this is structured prediction.
-- Pure representation learning. Encoder is frozen; this isn't contrastive/diffusion.
 - Tasks with no structural prior. The geometric machinery has nothing to grip.
 - Sparse-reward RL. No value function; supervised + Bayesian only.
+
+## Substrate choice (the encoder is not part of the architectural contract)
+
+Phases 0–18 used a *frozen* random-projection encoder by convention; Phases 20–23 showed that this was an *implementation choice*, not a TPN commitment. The formal definition above does not constrain the encoder at all — the typed graph, posterior, mask, σ, and per-cell heads sit on top of *whatever encoded representation* the substrate provides. Concretely:
+
+- **Frozen substrate (`FrozenEncoderTorch`):** the original convention. Useful for the "all gradient flows through symbolic structure" identifiability argument; bounded by the encoder's seed-init geometry (Phase 20 Wave B).
+- **Trained-from-scratch substrate (Wave C / E26):** an MLP trained on next-state prediction with state-conditioned input. Substantially better substrate quality (Phase 23: purity 0.42 → 0.80).
+- **Pretrained / off-the-shelf substrate (E29 / PCG-X on small transformer):** mid-layer activations from a model trained on the corpus. The most general case; PCG-X provides the interpretation layer.
+
+The architectural commitment is the symbolic stack on top, not the substrate underneath.
 
 ## Comparison to nearest neighbours
 

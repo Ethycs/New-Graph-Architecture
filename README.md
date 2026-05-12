@@ -161,8 +161,9 @@ Tasks where you need *all* of: hard structural constraint, hierarchy, calibrated
 ## What this is not for
 
 - Open-ended generation (no learned generation policy).
-- Pure representation learning (encoder is frozen).
 - Tasks with no structural prior (the geometric machinery has nothing to grip).
+
+The encoder is no longer part of the architectural contract (retired 2026-05-12 after Phase 20–23). See `docs/model-class.md` § "Substrate choice" for what this means concretely; PCG-X is the canonical interpretation layer over an arbitrary substrate.
 
 ## Acknowledgements
 
