@@ -26,6 +26,70 @@ the top of this file.
 
 ---
 
+## 2026-05-08 — Phase 23d — transformer substrate: PCG-X is operational; the Phase 23b prediction is falsified
+
+### What we built
+
+* **`src/nga/arch/small_transformer.py`** — bare causal transformer LM (token embed + learned positional embed + `nn.TransformerEncoderLayer` ×n, gelu, norm-first, causal mask, linear LM head). `encode(x, harvest_layer=k)` returns `(final_hidden, harvested_layer_k_output)` for mid-layer harvesting. `train_small_transformer` trains via causal next-token cross-entropy, one program at a time.
+* **`src/nga/exp/e29_pcg_extractor_transformer.py`** — the Phase 23d runner. Builds a per-grammar token vocab from `s.observed_token`, groups samples by `program_id`, trains a `d_model=64`, `n_heads=4`, `n_layers=2` transformer on the token sequences via causal LM. Harvests **layer-0 activations** aligned with the original sample ordering (one `(d_model,)` per (program, step)), then runs the standard PCG-X pipeline (predictive projection → argmax partition → bisimulation quotient).
+* **`scripts/phase23d_transformer_pcg_sweep.py`** — 5-grammar × `adversarial_token_weight ∈ {0.0, 1.0}` comparison.
+
+The substrate is now a real arbitrary-network: no `current_state` injected into the input, no per-step engineered features, no Wave-C state-conditioning. The transformer must learn FSM state implicitly from token context. This was the proposal's Tier-2 universality test, repurposed for the PCG-X deliverable.
+
+### Results — 5-grammar sweep (seed 42, 79.7 s total CPU)
+
+| grammar | V | adv_w | argmax cells | mean state-purity | mean failure | mean margin | xfm next-token acc |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| listops | 11 | 0.0 | 5 | **0.820** | 0.020 | 2.20 | 0.859 |
+| listops | 11 | 1.0 | 4 | 0.745 | 0.024 | 1.93 | 0.859 |
+| python_expr | 14 | 0.0 | 11 | **0.674** | 0.0003 | 2.63 | 0.612 |
+| python_expr | 14 | 1.0 | 9 | 0.561 | 0.003 | 1.63 | 0.612 |
+| python_big | 24 | 0.0 | 23 | **0.603** | 0.0005 | 1.62 | 0.600 |
+| python_big | 24 | 1.0 | 22 | 0.456 | 0.0003 | 0.81 | 0.600 |
+| json | 26 | 0.0 | 24 | **0.601** | 0.002 | 1.44 | 0.595 |
+| json | 26 | 1.0 | 23 | 0.577 | 0.010 | 0.87 | 0.595 |
+| python_control | 37 | 0.0 | 36 | **0.618** | 0.0008 | 1.49 | 0.718 |
+| python_control | 37 | 1.0 | 34 | 0.512 | 0.0000 | 0.88 | 0.718 |
+
+**Aggregate means:**
+
+| adv_w | mean state-purity | mean argmax cells | mean margin | mean failure |
+|---:|---:|---:|---:|---:|
+| 0.0 (no adv) | **0.6632** | 19.8 | 1.877 | 0.0046 |
+| 1.0 (adv on) | 0.5700 | 18.4 | 1.225 | 0.0076 |
+
+### The two architectural findings
+
+**(1) PCG-X is operational on a real arbitrary-network substrate.** The full pipeline runs end-to-end on 5 grammars in 80 seconds CPU. Layer-0 transformer activations carry enough FSM-relevant structure that argmax-of-next-state partitioning produces between 5 (listops) and 36 (python_control) cells with non-trivial state-purity (mean 0.66, range 0.60-0.82). The transformer's own next-token accuracy is only 0.60-0.86 at this scale (50K-param model, 12 training epochs, ≤2000 tokens per grammar), so the substrate is *weakly trained* compared to Wave-C's 0.97. **PCG-X still extracts a useful regime graph from this weakly-trained substrate.**
+
+**(2) The Phase 23b prediction is falsified.** I predicted that the adversarial token head, which was net-negative on the state-conditioned MLP substrate, would be net-positive on the transformer substrate because the transformer has no state-conditioning and its activations carry heavy token-level surface variance. **The prediction was wrong.** Mean state-purity drops by 9pp with `adv_w=1.0` (0.663 → 0.570); mean margin shrinks 35%; *every grammar* loses purity. The adversarial head consistently hurts.
+
+### Why the prediction failed (the post-mortem)
+
+Three plausible reasons, each diagnostic:
+
+1. **The transformer's activation space encodes state THROUGH token-context, not despite it.** Mid-layer activations of a causal LM are built to predict the next token from the full prefix; FSM state is the slow component of "what predicts the next token." Stripping the fast component (current-token content) doesn't just remove nuisance — it removes part of how state is encoded. The adversarial signal competes with the next-state-prediction signal *inside the same `z` projection*, so they pull against each other.
+2. **The transformer is weakly trained at this scale.** Next-token accuracy 0.60-0.72 on the big grammars means the substrate's state signal isn't yet sharp; adversarial pressure has a smaller "real" target to preserve and can disrupt the projection more than at maturity.
+3. **The adversarial-on-z design is too coarse.** The adversarial loss flows through the same `z` the predictive projection uses. A cleaner design routes the adversarial head through a *separate* branch that taps `z` but doesn't push back through it — preserving the predictive content while still measuring (and possibly using) the token-strippability signal as a diagnostic, not a training pressure.
+
+Combined with Phase 23b's null on the state-conditioned MLP, the **honest verdict on the adversarial token head is: it does not help PCG-X on either substrate tested at this scale and configuration**. The mechanism is correct (token accuracy drops sharply when the head is on); the placement is wrong. A "diagnostic-only" version (measure but don't backprop) or a "weak adversarial weight + larger projection capacity" version are both worth trying, but the simplest take-away is to **leave `adversarial_token_weight=0.0` by default**.
+
+### What this validates and what it refutes
+
+- ✓ PCG-X works on a real causal-transformer substrate trained from scratch on the corpus. Sub-2-minute end-to-end CPU on 5 grammars.
+- ✓ The control-graph artefact (regime nodes with support/failure/entropy/margin/dom_state/purity; edges with Beta confidence) is shaped identically across the MLP and transformer substrates.
+- ✗ The Phase 23b prediction is falsified: stripping token content does not earn its keep on the transformer substrate at this scale.
+- → The cleanest PCG-X configuration to ship is `adversarial_token_weight=0.0` (the Phase 23 MVP default). The adversarial head stays in the atom as a diagnostic switch and a future-research knob.
+- ↘ Substrate quality is the binding constraint, not the post-substrate machinery. The Wave-C MLP at 0.97 next-token accuracy gives purity 0.79; the small transformer at 0.63 next-token accuracy gives purity 0.66. The PCG-X stack faithfully reflects substrate quality without inflating it.
+
+### What's next
+
+- **Phase 23c (control / interventions).** With the adversarial head fully evaluated, this is the next leg of the mantra. Sample input edits per regime, estimate `P(next regime | current regime, intervention)`.
+- **σ + control_policy integration.** Hook the existing TPN routing atoms to the regime annotations PCG-X already emits.
+- **Bigger transformer at the same scale of corpus.** If the substrate-quality bottleneck is real, a 4-layer 128-dim transformer should bring next-token accuracy up and purity correspondingly. Quick experiment, but it's a substrate-quality scan, not a load-bearing architectural question.
+
+Suite: 500 passed, 8 xfailed, 1 pre-existing E0 env-flake (unchanged).
+
 ## 2026-05-08 — Phase 23b — adversarial token head: mechanism verified, null-to-negative on the state-conditioned substrate
 
 ### What we built
