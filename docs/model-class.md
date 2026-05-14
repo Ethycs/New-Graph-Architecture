@@ -39,9 +39,11 @@ Phases 0–18 used a *frozen* random-projection encoder by convention; Phases 20
 
 - **Frozen substrate (`FrozenEncoderTorch`):** the original convention. Useful for the "all gradient flows through symbolic structure" identifiability argument; bounded by the encoder's seed-init geometry (Phase 20 Wave B).
 - **Trained-from-scratch substrate (Wave C / E26):** an MLP trained on next-state prediction with state-conditioned input. Substantially better substrate quality (Phase 23: purity 0.42 → 0.80).
-- **Pretrained / off-the-shelf substrate (E29 / PCG-X on small transformer):** mid-layer activations from a model trained on the corpus. The most general case; PCG-X provides the interpretation layer.
+- **Frozen pretrained substrate (E30 / PCG-X on GPT-2 small):** mid-layer activations from an off-the-shelf model that **was not trained on the grammar**. The most general case. Phase 24 result: mean purity 0.764 across 5 grammars at L6 (block 6 of 12) — matches the state-conditioned MLP trained on the grammar (E28: 0.790) and beats the from-scratch small transformer trained on the grammar (E29: 0.663). PCG-X provides the interpretation layer; the substrate's pretraining priors carry the state structure. Phase 25's layer-ablation sweep (scripts/phase25_layer_ablation_sweep.py) found a robust peak-then-drop curve through depth: L0 ≈ 0.56, L6 ≈ 0.75, L10 ≈ 0.78, L12 ≈ 0.67. The final transformer block is the *wrong* place to harvest for state extraction — it specialises for next-token prediction. Mid-to-late (L6–L10) is the sweet spot; the L6/L10 distinction is within CUDA-nondeterministic seed variance and pending multi-seed bootstrap.
 
 The architectural commitment is the symbolic stack on top, not the substrate underneath.
+
+The same point applies to the *audited graph*: σ + the 3-branch `ControlPolicy` are substrate-agnostic over the graph they reason about. `ControlPolicy` accepts either a `GraphFSM` (the typed FSM, used by E0/E1/E9) or a raw `legality_matrix: np.ndarray` (the extracted PCG-X regime graph, used by E28 since Phase 23e). The σ ensemble takes scalar signals (margin, decision-tie, illegal, loop-risk, stabiliser, KL-surprise) and never references the graph directly, so the same detector runs over either. `decision_trace.jsonl` is therefore one schema with two producer families: the typed-FSM runners use vertex IDs like `"q_open"`; the PCG-X runner uses `"regime_K"` (or `"regime_unknown"` for argmaxes outside the trained cell set). The interpretability surface is the same in both cases.
 
 ## Comparison to nearest neighbours
 

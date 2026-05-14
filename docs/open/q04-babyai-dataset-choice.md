@@ -1,8 +1,24 @@
 # Which BabyAI level set should be the canonical E2 benchmark?
 
 **Cluster:** open
-**Status:** open
-**Tags:** #babyai #minigrid #benchmark #curriculum
+**Status:** orphaned-2026-05-13 — project pivoted to grammar substrates
+**Tags:** #babyai #minigrid #benchmark #curriculum #orphaned
+
+## Status update — 2026-05-13
+
+The project pivoted away from BabyAI/MiniGrid onto **grammar substrates** as the canonical benchmark surface. Across Phases 11–25 the de-facto canonical suite is:
+
+- **listops** (V=11) — synthetic depth-tracker
+- **python_expr** (V=14) — `ast.parse` + `tokenize` over real Python expressions
+- **python_big** (V=24) — Python expressions + calls + defs + returns
+- **json** (V=26) — published JSON grammar
+- **python_control** (V=37) — Python with control flow
+
+See [research_log.md §Phase 14](../../research_log.md), [research_log.md §Phase 18](../../research_log.md), [research_log2.md §Phase 23](../../research_log2.md), and [research_log2.md §Phase 24](../../research_log2.md). All Phase 22a / 23 / 23b / 23d / 23e / 24 / 25 sweeps run on this 5-grammar suite.
+
+E2 (Real BabyAI / MiniGrid) was never run past synthetic E1. The question as posed — which BabyAI subset — is moot in the current direction.
+
+If a reframed version of this question is wanted, it would be: *which set of published grammars is canonical, and how is "comparable across grammars" defined?* The 5-grammar list above is the de-facto answer, locked by the cross-grammar synthesis tables in Phases 16/18.
 
 ## What
 

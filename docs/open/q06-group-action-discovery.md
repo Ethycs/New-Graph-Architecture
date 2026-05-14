@@ -6,7 +6,7 @@
 
 ## What
 
-The quotient-attention mechanism ([Orbit-Pair Attention](../arch/orbit-pair-attention.md)) compresses an object set $V$ into orbits under a group action $\Gamma$, reducing all-to-all attention from $O(n^2)$ to $O(|V/\Gamma|^2)$. Is the group action $H$ given a priori (e.g., "these objects are equivalent by grammar"), or should it be discovered from data (e.g., via symmetry detection or representation clustering)?
+The quotient-attention mechanism ([Orbit-Pair Attention](../arch/group/orbit-pair-attention.md)) compresses an object set $V$ into orbits under a group action $\Gamma$, reducing all-to-all attention from $O(n^2)$ to $O(|V/\Gamma|^2)$. Is the group action $H$ given a priori (e.g., "these objects are equivalent by grammar"), or should it be discovered from data (e.g., via symmetry detection or representation clustering)?
 
 ## Why
 
@@ -17,7 +17,7 @@ The choice affects whether [E6 — Group-Quotient Attention](../exp/e6-group-quo
 
 ## Interface
 
-**Affected zettels:** [Group Action on Graph](../arch/group-action-on-graph.md), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
+**Affected zettels:** [Group Action on Graph](../arch/group/group-action-on-graph.md), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
 
 **Decision criteria:**
 - Can grammar naturally define equivalence classes (e.g., "all RetrieveTool actions are equivalent")?
@@ -36,5 +36,5 @@ The choice affects whether [E6 — Group-Quotient Attention](../exp/e6-group-quo
 ## Links
 
 - **See also:** [When does an orbit re-expand from quotient form?](./q08-quotient-reexpansion-threshold.md), [Which BabyAI level set should be the canonical E2 benchmark?](./q04-babyai-dataset-choice.md)
-- **Affects:** [Group Action on Graph](../arch/group-action-on-graph.md), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
+- **Affects:** [Group Action on Graph](../arch/group/group-action-on-graph.md), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
 - **Math:** [Architecture.md §Quotients, Monodromy, Boundary Memory](../Architecture.md#quotients-monodromy-boundary-memory)

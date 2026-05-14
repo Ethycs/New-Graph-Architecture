@@ -38,8 +38,8 @@ The typed graph may be inherently hierarchical: missions → subgoals → object
 
 ## Links
 
-- **See also:** [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md)
+- **See also:** [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md)
 - **Drives:** efficiency claim for hyperbolic structure
-- **Driven by:** (task-graph-loader — external), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md)
+- **Driven by:** (task-graph-loader — external), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md)
 - **Math:** Poincaré distance = arcosh(1 + 2||u-v||²/((1-||u||²)(1-||v||²))); accuracy vs dim
 - **Open:** (curvature-tuning, hierarchy-detection — open questions)

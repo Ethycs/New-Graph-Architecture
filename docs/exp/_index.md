@@ -1,14 +1,14 @@
 # Experiment Atoms
 
-The exp cluster contains 20 atomic notes covering the experiment harness: E0–E9 runner experiments, ablation studies, dataset adapters, and infrastructure (metric collectors and evidence tracking). Read these if you want to run, reproduce, or extend the experiments.
+The exp cluster covers the experiment harness across two arcs: the original E0–E9 BabyAI-oriented runners (Phases 0–9) and the later grammar-substrate / PCG-X runners (E24–E30, Phases 20–24). Read these if you want to run, reproduce, or extend the experiments.
 
 ## Notes
 
-### E0–E9 Runners
+### E0–E9 Runners (original BabyAI-oriented arc)
 
 - [E0 — MNIST Typed-State Sanity Run](./e0-mnist.md) — Minimal end-to-end sanity check: classifier → typed labels → confusion graph on sklearn digits.
 - [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md) — Tests graph-legality masking on in-process synthetic grid world; no external dependencies.
-- [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md) — 5-model comparison on real compositional language-grounded grid tasks; primary target.
+- [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md) — 5-model comparison on real compositional language-grounded grid tasks; never run (project pivoted to grammar substrates).
 - [E3 — Hyperbolic vs Euclidean Embedding Sweep](./e3-hyperbolic-vs-euclidean.md) — Sweeps dimensions {2,4,8,16,32} to test hyperbolic compression claim.
 - [E4 — Singularity Detector Validation](./e4-singularity-auroc.md) — Tests σ(x) AUROC against actual failures; proves detector is load-bearing.
 - [E5 — IDF Rare-Stratum Weighting Ablation](./e5-idf-ablation.md) — IDF weighting vs uniform; measures rare-state recall improvement.
@@ -16,6 +16,13 @@ The exp cluster contains 20 atomic notes covering the experiment harness: E0–E
 - [E7 — Reservoir Readout vs End-to-End](./e7-reservoir-vs-end2end.md) — Frozen encoder + linear readout vs full backprop; tests parameter efficiency.
 - [E8 — Transfer Experiment](./e8-transfer-experiment.md) — Zero-shot transfer across BabyAI task families; tests whether graph abstracts domain shift.
 - [E9 — Full Agent Trace Benchmark](./e9-full-trace-benchmark.md) — Full architecture on BabyAI, ALFWorld, ScienceWorld; integration test.
+
+### Grammar-substrate / PCG-X arc (Phases 20–24)
+
+- [E24 — Universal Graph Extraction (Phase 20 Wave A)](./e24-graph-extraction.md) — BIC-driven cluster-count recovery on synthetic blob distribution; pipeline sanity.
+- [E25 — Graph Extraction on the Torch Substrate (Phase 20 Wave B Tier 1)](./e25-extraction-torch.md) — Frozen-encoder substrate test on python_big; FSM information non-trivial but incomplete.
+- [E28 — Predictive Control Graph Extractor (Phase 23 MVP + Phase 23e σ/control bridge)](./e28-pcg-extractor.md) — PCG-X partition-by-prediction; emits `control_graph.json` + `decision_trace.jsonl`; 5-grammar smoke.
+- [E30 — PCG-X on a Frozen Pretrained Substrate (Phase 24)](./e30-pcg-extractor-pretrained.md) — Same pipeline as E28 on frozen GPT-2 activations; pretrained substrate decisively beats the from-scratch transformer.
 
 ### Ablation
 

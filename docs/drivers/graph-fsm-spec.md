@@ -10,7 +10,7 @@ The Graph FSM Spec is a YAML/JSON file format describing the task state machine:
 
 ## Why
 
-The graph FSM is the combinatorial skeleton. Without it, the classifier can predict any next state; legal constraints are lost. With it, two systems must agree on the legal transition set: the architecture enforces the mask during training/inference, and the experiment checks whether the architecture's outputs satisfy the mask. If the spec drifts between them—if architecture sees edge `(Parse, Navigate)` as legal but experiment does not—then ablation studies become meaningless. The FSM spec is also the core input to [Graph Legality Mask](../arch/graph-legality-mask.md) and to (transition-validator — exp).
+The graph FSM is the combinatorial skeleton. Without it, the classifier can predict any next state; legal constraints are lost. With it, two systems must agree on the legal transition set: the architecture enforces the mask during training/inference, and the experiment checks whether the architecture's outputs satisfy the mask. If the spec drifts between them—if architecture sees edge `(Parse, Navigate)` as legal but experiment does not—then ablation studies become meaningless. The FSM spec is also the core input to [Graph Legality Mask](../arch/graph/graph-legality-mask.md) and to (transition-validator — exp).
 
 ## Interface
 
@@ -88,7 +88,7 @@ validation:
 | `layer` | int | depth | optional | `1` | Topological depth for visualization. |
 | `w_v` | float ≥ 0 | weight | required | `2.0` | Vertex weight; consumed by IDF when `idf_weighting_enabled` (see [Ablation Flag Set](./ablation-flags.md)). |
 | `g_v` | float | curvature/radius | required | `0.5` | Geometric coefficient; with `coordinates.space == "hyperbolic"` interpreted as radius/specificity. |
-| `m_v` | str \| null | group label | required | `"S3"` | Stabilizer/monodromy group label; consumed by [Group Action on Graph](../arch/group-action-on-graph.md) and [Stabilizer Signature](../arch/stabilizer-signature.md). `null` means trivial. |
+| `m_v` | str \| null | group label | required | `"S3"` | Stabilizer/monodromy group label; consumed by [Group Action on Graph](../arch/group/group-action-on-graph.md) and [Stabilizer Signature](../arch/group/stabilizer-signature.md). `null` means trivial. |
 
 **Edge schema:**
 
@@ -117,7 +117,7 @@ validation:
 | `invariant_edges` | array<str> | optional | `["Parse → *"]` | Pattern strings; edges that must exist in all variants. |
 
 **Legality matrix construction:**
-- [Graph Legality Mask](../arch/graph-legality-mask.md) reads `vertices` and `edges`, builds adjacency $A \in \{0,1\}^{|V| \times |V|}$ where $A[i,j] = 1$ iff edge `(vertices[i].id, vertices[j].id)` exists.
+- [Graph Legality Mask](../arch/graph/graph-legality-mask.md) reads `vertices` and `edges`, builds adjacency $A \in \{0,1\}^{|V| \times |V|}$ where $A[i,j] = 1$ iff edge `(vertices[i].id, vertices[j].id)` exists.
 - At inference: given current state $q_t$ and classifier scores $s_\lambda(x)$, set masked logits $\ell'_j = \ell_j - (1 - A[q_t, j]) \cdot \lambda_\infty$, then softmax.
 
 **Versioning:**
@@ -126,14 +126,14 @@ validation:
 - Renaming or changing types bumps the version; readers MUST refuse unsupported majors.
 
 **Producers:** human-curated YAML or output of (grammar→graph compiler — code TBD); written under `graphs/`.
-**Consumers:** [Graph FSM (arch)](../arch/graph-fsm.md) and [Graph Legality Mask](../arch/graph-legality-mask.md) (build mask), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md) and [Graph Prototype Vectors](../arch/graph-prototype-vectors.md) (consume `coordinates.node_embeddings`), [Group Action on Graph](../arch/group-action-on-graph.md) and [Stabilizer Signature](../arch/stabilizer-signature.md) (consume `m_v`), [Metric Collectors](../exp/metric-collectors.md) and (transition-validator — exp) for legality metrics.
+**Consumers:** [Graph FSM (arch)](../arch/graph/graph-fsm.md) and [Graph Legality Mask](../arch/graph/graph-legality-mask.md) (build mask), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md) and [Graph Prototype Vectors](../arch/hyperbolic/graph-prototype-vectors.md) (consume `coordinates.node_embeddings`), [Group Action on Graph](../arch/group/group-action-on-graph.md) and [Stabilizer Signature](../arch/group/stabilizer-signature.md) (consume `m_v`), [Metric Collectors](../exp/metric-collectors.md) and (transition-validator — exp) for legality metrics.
 
 ## Build steps
 
 1. Define `GraphFSMSpec`, `Vertex`, `Edge`, `Coordinates`, `Validation` dataclasses with YAML/JSON serialization and the validators above (`vertex_count`, `edge_count`, embedding length, edge endpoints reference real vertex ids, `dimension` equals `Config.embedding_dim`).
 2. Implement `fsm_loader.py` with `load(path) → GraphFSMSpec`; rejects unsupported `schema_version`.
 3. Implement `build_legality_matrix(spec) → np.ndarray` and cache by `(spec.name, spec.schema_version)`.
-4. Wire [Graph FSM (arch)](../arch/graph-fsm.md) and [Graph Legality Mask](../arch/graph-legality-mask.md) to consume `GraphFSMSpec` and call `build_legality_matrix` once at construction time.
+4. Wire [Graph FSM (arch)](../arch/graph/graph-fsm.md) and [Graph Legality Mask](../arch/graph/graph-legality-mask.md) to consume `GraphFSMSpec` and call `build_legality_matrix` once at construction time.
 5. Wire (transition-validator — exp, lives inside [Metric Collectors](../exp/metric-collectors.md)) to load the same spec and compute `transition_legal` for each [results.jsonl](./results-jsonl.md) record.
 6. Author template FSM files under `graphs/`: `mnist.fsm.yaml`, `babyai-synthetic.fsm.yaml`, `babyai.fsm.yaml`, `alfworld.fsm.yaml`, `scienceworld.fsm.yaml`.
 7. Add a regression test that loads each template, builds the legality matrix, and confirms `start_nodes`/`end_nodes` are reachable.
@@ -141,6 +141,6 @@ validation:
 ## Links
 
 - **See also:** [Config (YAML)](./config.md) (path to spec file; `embedding_dim` constraint), [Ablation Flag Set](./ablation-flags.md) (`graph_mask_enabled`, `hyperbolic_geometry_enabled`), [Typed Score Record Contract](./typed-score-record.md) (`label` ↔ vertex `id`)
-- **Drives:** [Graph FSM (arch)](../arch/graph-fsm.md), [Graph Legality Mask](../arch/graph-legality-mask.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Graph Prototype Vectors](../arch/graph-prototype-vectors.md), [Group Action on Graph](../arch/group-action-on-graph.md), [Stabilizer Signature](../arch/stabilizer-signature.md), [Metric Collectors](../exp/metric-collectors.md)
+- **Drives:** [Graph FSM (arch)](../arch/graph/graph-fsm.md), [Graph Legality Mask](../arch/graph/graph-legality-mask.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Graph Prototype Vectors](../arch/hyperbolic/graph-prototype-vectors.md), [Group Action on Graph](../arch/group/group-action-on-graph.md), [Stabilizer Signature](../arch/group/stabilizer-signature.md), [Metric Collectors](../exp/metric-collectors.md)
 - **Driven by:** grammar DSL compiler or manual curation under `graphs/`
 - **Open:** (q03-edge-weights — used for masking or analysis only?), (q04-monodromy-representation — encode stabilizer groups compactly?)

@@ -1,12 +1,23 @@
 # When does an orbit re-expand from quotient form?
 
 **Cluster:** open
-**Status:** open
-**Tags:** #quotient #reexpansion #idf #compression
+**Status:** orphaned-2026-05-08 — quotient reframed as upstream partition (PCG-X)
+**Tags:** #quotient #reexpansion #idf #compression #orphaned
+
+## Status update — 2026-05-08 (Phase 21 + Phase 23)
+
+The "compress to orbit / re-expand later" framing has been superseded by the Phase 23 PCG-X reframe.
+
+- **Phase 21** found that an agglomerative bisimulation quotient on the trained encoder's clusters is **inert** at the scale tested — it lands in the same Hamming band as forced K=V and as random merge. The substrate's natural equivalence is finer than the FSM's; the quotient cannot recover the FSM by merging similar transition distributions. See [research_log.md §Phase 21 — "overcluster → bisimulation quotient; the gap is clustering, not extraction"](../../research_log.md).
+- **Phase 23** replaced "quotient after the fact" with **partition by prediction**: `argmax(next_state_logits)` produces fewer cells than V naturally, doing Myhill–Nerode coarsening upstream rather than post-hoc. The bisimulation quotient is **no longer load-bearing** — it has been re-purposed as a post-hoc consolidator. See [research_log2.md §Phase 23 — "The quotient is essentially a no-op at this scale"](../../research_log2.md).
+
+So the re-expansion question as posed (IDF threshold vs learned policy vs σ-triggered) has no current consumer: there is no compression/decompression step to schedule. The "compress" half was replaced by upstream partitioning; "re-expand" is no longer a thing the system does.
+
+If a reframed version of this question is wanted, it would be: *when should the regime graph be re-partitioned at a finer granularity?* (e.g., a regime with high entropy or growing failure rate could be split). That is an unimplemented but well-shaped Phase 23+ follow-up.
 
 ## What
 
-In [Orbit Quotient Space](../arch/orbit-quotient-space.md), object orbits are compressed into single representatives during attention, then optionally re-expanded for downstream processing. When should an orbit re-expand from compressed quotient form back to full: at a fixed IDF threshold, via learned decision, or triggered by detected singularities?
+In [Orbit Quotient Space](../arch/group/orbit-quotient-space.md), object orbits are compressed into single representatives during attention, then optionally re-expanded for downstream processing. When should an orbit re-expand from compressed quotient form back to full: at a fixed IDF threshold, via learned decision, or triggered by detected singularities?
 
 ## Why
 
@@ -19,7 +30,7 @@ The schedule affects compression efficiency and whether the system gracefully sc
 
 ## Interface
 
-**Affected zettels:** [Orbit Quotient Space](../arch/orbit-quotient-space.md), (idf-weighting — arch component), [Singularity Detector σ(x)](../arch/singularity-detector.md), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md)
+**Affected zettels:** [Orbit Quotient Space](../arch/group/orbit-quotient-space.md), (idf-weighting — arch component), [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md)
 
 **Decision criteria:**
 - Measure: re-expansion frequency vs. task performance gain.
@@ -38,5 +49,5 @@ The schedule affects compression efficiency and whether the system gracefully sc
 ## Links
 
 - **See also:** [How are IDF weights updated at runtime?](./q03-idf-runtime-schedule.md), [Is the group action H specified or discovered?](./q06-group-action-discovery.md)
-- **Affects:** [Orbit Quotient Space](../arch/orbit-quotient-space.md), (idf-weighting — arch component), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md)
+- **Affects:** [Orbit Quotient Space](../arch/group/orbit-quotient-space.md), (idf-weighting — arch component), [E6 — Group-Quotient Attention](../exp/e6-group-quotient-attention.md)
 - **Math:** [Architecture.md §Quotients, Monodromy, Boundary Memory](../Architecture.md#quotients-monodromy-boundary-memory)

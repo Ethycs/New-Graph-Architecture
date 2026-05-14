@@ -17,11 +17,11 @@ IDF weighting is designed to highlight rare-failure modes and rare-grammar state
 - EMA tracks recent drift (useful for covariate shift).
 - Per-epoch recompute is expensive but adaptive.
 
-The schedule affects learning stability, rare-event recall, and whether [Singularity Detector σ(x)](../arch/singularity-detector.md) stays aligned with task semantics as the agent encounters new regimes.
+The schedule affects learning stability, rare-event recall, and whether [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md) stays aligned with task semantics as the agent encounters new regimes.
 
 ## Interface
 
-**Affected zettels:** (idf-weighting — arch component), [Energy-Weighted Loss](../arch/energy-weighted-loss.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md), [E7 — Reservoir Readout vs End-to-End](../exp/e7-reservoir-vs-end2end.md)
+**Affected zettels:** (idf-weighting — arch component), [Energy-Weighted Loss](../arch/energy/energy-weighted-loss.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md), [E7 — Reservoir Readout vs End-to-End](../exp/e7-reservoir-vs-end2end.md)
 
 **Decision criteria:**
 - Measure rare-state recall and false-alarm rate under distribution shift.
@@ -40,5 +40,5 @@ The schedule affects learning stability, rare-event recall, and whether [Singula
 ## Links
 
 - **See also:** [What defines "successful transfer" in E8?](./q05-transfer-success-criterion.md), [When does an orbit re-expand from quotient form?](./q08-quotient-reexpansion-threshold.md)
-- **Affects:** (idf-weighting — arch component), [Energy-Weighted Loss](../arch/energy-weighted-loss.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md)
+- **Affects:** (idf-weighting — arch component), [Energy-Weighted Loss](../arch/energy/energy-weighted-loss.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md)
 - **Math:** [Experiments.md §E5-IDF-Rare-Stratum-Weighting](../Experiments.md#e5--idf-rare-stratum-weighting)

@@ -75,7 +75,7 @@ Metrics must be logged consistently by both architecture training loop and exper
 1. Define `MetricsRecord` dataclass with the field schema above; validators for `metric_name` (canonical or warn), `split`, and numeric types.
 2. Implement `metrics_writer.py` with atomic-append `write(record, path)`; exposes a `MetricCollector` context that fills `run_id`, `experiment`, `ablation`, `seed` from the runtime context produced by [CLI Runner](./cli-runner.md).
 3. Implement `metrics_reader.py` with streaming `read(path) → Iterator[MetricsRecord]`; rejects unsupported major version.
-4. Wire arch trainers (entry from [Typed Field Pipeline](../arch/typed-field-pipeline.md)) to call the collector after each epoch and validation step.
+4. Wire arch trainers (entry from [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md)) to call the collector after each epoch and validation step.
 5. Wire E0–E9 evaluation paths (under `exp/`) and [Metric Collectors](../exp/metric-collectors.md) to call the collector after each ablation variant.
 6. Wire [Evidence-Level Tracker](../exp/evidence-tracker.md) to read every `runs/*/metrics.jsonl`, group by `(experiment, ablation, metric_name)`, and report mean/std/min/max.
 7. Document the canonical `metric_name` table in code as the single source of truth.
@@ -84,5 +84,5 @@ Metrics must be logged consistently by both architecture training loop and exper
 
 - **See also:** [results.jsonl](./results-jsonl.md) (per-sample audit; shares `run_id`, `experiment`, `ablation`, `seed`, `step`), [Config (YAML)](./config.md) (carries `seed` and ablation context), [Ablation Flag Set](./ablation-flags.md)
 - **Drives:** [Evidence-Level Tracker](../exp/evidence-tracker.md), [Ablation Matrix](../exp/ablation-matrix.md)
-- **Driven by:** [Typed Field Pipeline](../arch/typed-field-pipeline.md), [Metric Collectors](../exp/metric-collectors.md), [CLI Runner](./cli-runner.md)
+- **Driven by:** [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), [Metric Collectors](../exp/metric-collectors.md), [CLI Runner](./cli-runner.md)
 - **Open:** (q05-metric-aggregation — pre-aggregate per ablation, or leave raw?)

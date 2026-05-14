@@ -60,7 +60,7 @@ The e2e suite (`tests/e2e/test_e25_extraction_torch.py`) enforces:
 
 ## Links
 
-- **See also:** [E24 Graph Extraction](./e24-graph-extraction.md) (synthetic sanity tier), [Hidden State Harvester](../arch/hidden-state-harvester.md), [Bayesian Nonparametric K](../arch/bayesian-nonparametric-k.md), [Forward Backward](../arch/forward-backward.md).
+- **See also:** [E24 Graph Extraction](./e24-graph-extraction.md) (synthetic sanity tier), [Hidden State Harvester](../arch/substrate/hidden-state-harvester.md), [Bayesian Nonparametric K](../arch/energy/bayesian-nonparametric-k.md), [Forward Backward](../arch/energy/forward-backward.md).
 - **Driven by:** [docs/proposals/graph-extraction.md](../proposals/graph-extraction.md) Tier 1 sanity.
 - **Drives:** Wave C (external transformer); the multi-grammar bundle that will run E25 on python_expr / python_big / JSON / control flow / ListOps with multi-seed.
 - **Open:** whether a trained encoder (Phase B in E18 etc.) on the same substrate brings K_star to V and Hamming under 0.05 — the natural Wave-B follow-up.

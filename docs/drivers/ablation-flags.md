@@ -111,7 +111,7 @@ Resolves: build-order consideration #1 ("`reservoir_frozen` default for A0").
 
 ### Axis V2: `fsm_source ∈ {hand, compiled}`
 
-A new variant axis on [Config (YAML)](./config.md). `fsm_source = hand` (default) loads the hand-authored YAML at `Config.graph_fsm_path`. `fsm_source = compiled` runs [Grammar Compiler](../arch/grammar-compiler.md) over `Config.grammar_spec_path` and uses its emitted FSM. Both producers must emit identical-by-schema artifacts; an acceptance test (`test_compiler_output_matches_hand_authored`) round-trips both through [Graph FSM Spec](./graph-fsm-spec.md) and asserts equivalence. The compiler stays in its current Phase 5 position; while it is absent, only `hand` is selectable.
+A new variant axis on [Config (YAML)](./config.md). `fsm_source = hand` (default) loads the hand-authored YAML at `Config.graph_fsm_path`. `fsm_source = compiled` runs [Grammar Compiler](../arch/substrate/grammar-compiler.md) over `Config.grammar_spec_path` and uses its emitted FSM. Both producers must emit identical-by-schema artifacts; an acceptance test (`test_compiler_output_matches_hand_authored`) round-trips both through [Graph FSM Spec](./graph-fsm-spec.md) and asserts equivalence. The compiler stays in its current Phase 5 position; while it is absent, only `hand` is selectable.
 
 Cost: one new field on Config (V2); one acceptance test; doubles the matrix on E experiments that genuinely depend on the FSM (E1, E2, E9). Cheap experiments (E0–E5) run the full `(A × V2)` grid; expensive experiments (E2, E9) run only the resolved variant after the cheap grid identifies a winner.
 
@@ -134,7 +134,7 @@ For cheap experiments, the test matrix size is `|A| × |V1| × |V2| = 10 × 1 ×
 - Renaming a flag is a major bump.
 
 **Producers:** human design under `configs/ablations.yaml`.
-**Consumers:** [CLI Runner](./cli-runner.md) (loader and snapshot writer); [Typed Field Pipeline](../arch/typed-field-pipeline.md) and every arch atom that respects a flag (e.g., [Graph Legality Mask](../arch/graph-legality-mask.md), [Singularity Detector σ(x)](../arch/singularity-detector.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Orbit-Pair Attention](../arch/orbit-pair-attention.md), [Frozen Encoder Backbone](../arch/frozen-encoder-backbone.md)); [Ablation Matrix](../exp/ablation-matrix.md); every E-experiment reads the resolved tuple from the run snapshot.
+**Consumers:** [CLI Runner](./cli-runner.md) (loader and snapshot writer); [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md) and every arch atom that respects a flag (e.g., [Graph Legality Mask](../arch/graph/graph-legality-mask.md), [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Orbit-Pair Attention](../arch/group/orbit-pair-attention.md), [Frozen Encoder Backbone](../arch/substrate/frozen-encoder-backbone.md)); [Ablation Matrix](../exp/ablation-matrix.md); every E-experiment reads the resolved tuple from the run snapshot.
 
 ## Build steps
 
@@ -142,13 +142,13 @@ For cheap experiments, the test matrix size is `|A| × |V1| × |V2| = 10 × 1 ×
 2. Author `configs/ablations.yaml` with `A0`…`A9` as defined above.
 3. Implement `ablation_loader.py`: `load(path, ablation_id) → AblationConfig`; rejects unsupported `schema_version`; raises on missing ablation id.
 4. Wire arch components to consume `AblationConfig`:
-   - [Graph Legality Mask](../arch/graph-legality-mask.md) → `graph_mask_enabled`.
-   - [Typed Field Pipeline](../arch/typed-field-pipeline.md) → `typed_scores_enabled`.
-   - [Singularity Detector σ(x)](../arch/singularity-detector.md) → `singularity_detector_enabled` (and `A4` separately gates downstream routing).
-   - [Hyperbolic Distance Loss](../arch/hyperbolic-distance-loss.md) → `idf_weighting_enabled`.
-   - [Hyperbolic Embedding](../arch/hyperbolic-embedding.md) → `hyperbolic_geometry_enabled` (Euclidean fallback path).
-   - [Orbit-Pair Attention](../arch/orbit-pair-attention.md), [Orbit Quotient Space](../arch/orbit-quotient-space.md) → `group_quotient_enabled`.
-   - [Frozen Encoder Backbone](../arch/frozen-encoder-backbone.md), [Typed Readout Layer](../arch/typed-readout-layer.md) → `reservoir_frozen`.
+   - [Graph Legality Mask](../arch/graph/graph-legality-mask.md) → `graph_mask_enabled`.
+   - [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md) → `typed_scores_enabled`.
+   - [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md) → `singularity_detector_enabled` (and `A4` separately gates downstream routing).
+   - [Hyperbolic Distance Loss](../arch/hyperbolic/hyperbolic-distance-loss.md) → `idf_weighting_enabled`.
+   - [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md) → `hyperbolic_geometry_enabled` (Euclidean fallback path).
+   - [Orbit-Pair Attention](../arch/group/orbit-pair-attention.md), [Orbit Quotient Space](../arch/group/orbit-quotient-space.md) → `group_quotient_enabled`.
+   - [Frozen Encoder Backbone](../arch/substrate/frozen-encoder-backbone.md), [Typed Readout Layer](../arch/typed/typed-readout-layer.md) → `reservoir_frozen`.
    - (trace memory module — TBD) → `trace_history_enabled`.
 5. Wire [CLI Runner](./cli-runner.md) to: accept `--ablation`; load the tuple; pass to both the arch builder and the eval runner; snapshot to `runs/<run_id>/ablation_snapshot.yaml`.
 6. Wire [Ablation Matrix](../exp/ablation-matrix.md) to drive the sweep across `A0`…`A9`.
@@ -157,6 +157,6 @@ For cheap experiments, the test matrix size is `|A| × |V1| × |V2| = 10 × 1 ×
 ## Links
 
 - **See also:** [Config (YAML)](./config.md) (selects ablation), [CLI Runner](./cli-runner.md) (loads and applies), [Ablation Matrix](../exp/ablation-matrix.md) (sweep runner)
-- **Drives:** [Typed Field Pipeline](../arch/typed-field-pipeline.md), [Graph Legality Mask](../arch/graph-legality-mask.md), [Singularity Detector σ(x)](../arch/singularity-detector.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Hyperbolic Distance Loss](../arch/hyperbolic-distance-loss.md), [Orbit-Pair Attention](../arch/orbit-pair-attention.md), [Frozen Encoder Backbone](../arch/frozen-encoder-backbone.md), [Typed Readout Layer](../arch/typed-readout-layer.md)
+- **Drives:** [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), [Graph Legality Mask](../arch/graph/graph-legality-mask.md), [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Hyperbolic Distance Loss](../arch/hyperbolic/hyperbolic-distance-loss.md), [Orbit-Pair Attention](../arch/group/orbit-pair-attention.md), [Frozen Encoder Backbone](../arch/substrate/frozen-encoder-backbone.md), [Typed Readout Layer](../arch/typed/typed-readout-layer.md)
 - **Driven by:** human design
 - **Open:** (q09-ablation-coverage — are A0–A9 sufficient?), (q10-interaction-effects — test combinations or keep orthogonal?)

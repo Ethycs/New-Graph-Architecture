@@ -36,8 +36,8 @@ If the typed-graph machinery works as a structured "reservoir," then a frozen pr
 
 ## Links
 
-- **See also:** [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md), [Typed Field Pipeline](../arch/typed-field-pipeline.md)
+- **See also:** [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md), [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md)
 - **Drives:** parameter-efficiency claim for typed readout
-- **Driven by:** (encoder-loader — external), [Typed Readout Layer](../arch/typed-readout-layer.md)
+- **Driven by:** (encoder-loader — external), [Typed Readout Layer](../arch/typed/typed-readout-layer.md)
 - **Math:** ECE = mean|confidence - accuracy| over bins; param_ratio = (reservoir_params) / (full_params)
 - **Open:** [What is the encoder freeze schedule in reservoir readout?](../open/q09-reservoir-freeze-schedule.md), (readout-architecture — open question)

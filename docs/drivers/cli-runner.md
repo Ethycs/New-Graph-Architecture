@@ -108,6 +108,6 @@ python run.py --experiment E2 --ablation A0 --config configs/babyai.yaml --seed 
 ## Links
 
 - **See also:** [Config (YAML)](./config.md) (what CLI loads), [Ablation Flag Set](./ablation-flags.md) (how CLI applies variants), [Graph FSM Spec](./graph-fsm-spec.md) (snapshotted into the run dir), [metrics.jsonl](./metrics-jsonl.md) and [results.jsonl](./results-jsonl.md) (what CLI writes)
-- **Drives:** [Typed Field Pipeline](../arch/typed-field-pipeline.md), every dataset adapter (`exp/dataset-*.md`), [Metric Collectors](../exp/metric-collectors.md), [Evidence-Level Tracker](../exp/evidence-tracker.md)
+- **Drives:** [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), every dataset adapter (`exp/dataset-*.md`), [Metric Collectors](../exp/metric-collectors.md), [Evidence-Level Tracker](../exp/evidence-tracker.md)
 - **Driven by:** human or CI/CD invocation
 - **Open:** (q07-checkpoint-loading — config or CLI arg?), (q08-distributed-training — parallelize over seeds and ablations?)

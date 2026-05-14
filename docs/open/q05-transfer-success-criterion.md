@@ -20,7 +20,7 @@ The choice affects claimed contribution size, ablation design, and comparison fa
 
 ## Interface
 
-**Affected zettels:** [E8 — Transfer Experiment](../exp/e8-transfer-experiment.md), [Orbit Quotient Space](../arch/orbit-quotient-space.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md)
+**Affected zettels:** [E8 — Transfer Experiment](../exp/e8-transfer-experiment.md), [Orbit Quotient Space](../arch/group/orbit-quotient-space.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md)
 
 **Decision criteria:**
 - Measure source and target performance (flat, graph, oracle).

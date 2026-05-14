@@ -46,6 +46,6 @@ The efficiency claims are only credible if each component is demonstrably load-b
 
 - **See also:** [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md), [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E3 — Hyperbolic vs Euclidean](./e3-hyperbolic-vs-euclidean.md), [E4 — Singularity Detector Validation](./e4-singularity-auroc.md), [E5 — IDF Rare-Stratum Weighting](./e5-idf-ablation.md), [E6 — Group-Quotient Attention](./e6-group-quotient-attention.md), [E7 — Reservoir Readout vs End-to-End](./e7-reservoir-vs-end2end.md)
 - **Drives:** proves load-bearing claims
-- **Driven by:** (task-trace-loader — external), [Graph Legality Mask](../arch/graph-legality-mask.md), [Typed Field Pipeline](../arch/typed-field-pipeline.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Singularity Detector σ(x)](../arch/singularity-detector.md)
+- **Driven by:** (task-trace-loader — external), [Graph Legality Mask](../arch/graph/graph-legality-mask.md), [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md)
 - **Math:** delta_i,m = (metric_m[A_i] - metric_m[A0]) / metric_m[A0]; load_bearing iff Σ(delta ≥ 3%) ≥ 2
 - **Open:** (ablation-threshold — open question)

@@ -40,6 +40,6 @@ Real BabyAI tests the architecture on actual compositional language-grounded ins
 
 - **See also:** [E1 — Synthetic BabyAI Grid Run](./e1-synthetic-babyai.md), [E9 — Full Agent Trace Benchmark](./e9-full-trace-benchmark.md), [Dataset Adapter — Real MiniGrid/BabyAI Wrapper](./dataset-minigrid-wrapper.md)
 - **Drives:** validates graph FSM on real grammar domain
-- **Driven by:** (minigrid-instruction-loader — external), [Typed Field Pipeline](../arch/typed-field-pipeline.md), [Graph Legality Mask](../arch/graph-legality-mask.md)
+- **Driven by:** (minigrid-instruction-loader — external), [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), [Graph Legality Mask](../arch/graph/graph-legality-mask.md)
 - **Math:** success_rate = (episode_return ≥ threshold).mean() over n_eval episodes
 - **Open:** (level-selection, instruction-ambiguity-measurement — open questions)

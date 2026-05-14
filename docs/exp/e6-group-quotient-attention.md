@@ -36,8 +36,8 @@ Full object-to-object attention scales as O(n²), which is expensive for large t
 
 ## Links
 
-- **See also:** [Orbit-Pair Attention](../arch/orbit-pair-attention.md), [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E9 — Full Agent Trace Benchmark](./e9-full-trace-benchmark.md)
+- **See also:** [Orbit-Pair Attention](../arch/group/orbit-pair-attention.md), [E2 — Real BabyAI / MiniGrid](./e2-real-babyai.md), [E9 — Full Agent Trace Benchmark](./e9-full-trace-benchmark.md)
 - **Drives:** efficiency gain from group-action structure
-- **Driven by:** (task-object-inventory — external), [Orbit-Pair Attention](../arch/orbit-pair-attention.md)
+- **Driven by:** (task-object-inventory — external), [Orbit-Pair Attention](../arch/group/orbit-pair-attention.md)
 - **Math:** quotient_attention = O(|V/H|²) vs dense O(n²); reexpansion = high-IDF orbits only
 - **Open:** [When does an orbit re-expand from quotient form?](../open/q08-quotient-reexpansion-threshold.md), (group-structure-definition — open question)

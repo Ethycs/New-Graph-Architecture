@@ -14,11 +14,11 @@ Or is the benefit illusory at practical task-graph sizes (e.g., 100–10k nodes)
 
 If hyperbolic geometry requires $d=16$ to match Euclidean $d=8$ in accuracy, but each hyperbolic operation costs 4× a Euclidean operation, then $16 \times 4 = 64 > 8$, and Euclidean is faster. The claim that "hyperbolic compresses hierarchy" only holds if the true effective cost per sample is lower.
 
-This gates the design choice of [Hyperbolic Embedding](../arch/hyperbolic-embedding.md). If this doesn't hold, revert to Euclidean embedding with learned hierarchy.
+This gates the design choice of [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md). If this doesn't hold, revert to Euclidean embedding with learned hierarchy.
 
 ## Interface
 
-**Affected zettels:** [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), (euclidean-scoring — arch component), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
+**Affected zettels:** [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), (euclidean-scoring — arch component), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
 
 **Decision criteria:**
 - Measure: accuracy vs. dimension for Euclidean and hyperbolic on task graphs of varying size.
@@ -38,5 +38,5 @@ This gates the design choice of [Hyperbolic Embedding](../arch/hyperbolic-embedd
 ## Links
 
 - **See also:** [What hyperbolic dimension is needed for the task graph?](./q01-hyperbolic-dim.md)
-- **Affects:** [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), (euclidean-scoring — arch component), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md)
+- **Affects:** [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), (euclidean-scoring — arch component), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md)
 - **Math:** [Architecture.md §Hyperbolic Task Space and Geometry](../Architecture.md#hyperbolic-task-space-and-geometry)

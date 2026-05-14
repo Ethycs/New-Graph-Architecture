@@ -1,8 +1,14 @@
 # How is "loop risk" scored in σ(x)?
 
 **Cluster:** open
-**Status:** open
+**Status:** resolved-2026-05-12 — variant (A) N-gram on regime graph
 **Tags:** #loop-risk #singularity #detection #infinite-loops
+
+## Status update — 2026-05-12 (Phase 23e)
+
+De-facto answered: **variant (A) — Markov N-gram history**, applied at the regime-graph level rather than the raw action level. Phase 23e wires loop-risk into the PCG-X regime trace as: "predicted regime revisited within the last 5 same-program steps." See [research_log2.md §Phase 23e](../../research_log2.md) for the implementation in `_emit_regime_decision_trace`.
+
+In the 5-grammar sweep, loop-risk was rarely the dominant σ contributor; the illegal signal (`(current_regime, predicted_regime) ∉ edge set`) is the cleanest separator of train vs. held-out, and σ is bimodal so the loop-risk term mainly adds to the ABSTAIN tail. Variants (B) autocorrelation, (C) learned head, and (D) ensemble were not implemented — the simple N-gram on the regime graph hit the cheapest-thing-that-works bar.
 
 ## What
 
@@ -18,11 +24,11 @@ The choice trades simplicity (A, B) against adaptivity (C).
 
 Loop detection is critical for agent safety. A poorly tuned detector either triggers false alarms (stops productive cycles) or misses real loops (agent hangs). The scoring method determines responsiveness and generalization to unseen loop patterns.
 
-This component contributes to [Singularity Detector σ(x)](../arch/singularity-detector.md) and is tested in [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md) and [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md).
+This component contributes to [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md) and is tested in [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md) and [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md).
 
 ## Interface
 
-**Affected zettels:** [Singularity Detector σ(x)](../arch/singularity-detector.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
+**Affected zettels:** [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
 
 **Decision criteria:**
 - Measure: loop detection recall (catch actual loops) and false-alarm rate (avoid stopping valid repetition).
@@ -42,5 +48,5 @@ This component contributes to [Singularity Detector σ(x)](../arch/singularity-d
 ## Links
 
 - **See also:** [Does σ(x) get weighted into loss, detection-only, or scheduled?](./q07-singularity-loss-weighting.md), [Does singularity score σ(x) beat margin alone?](./q10-failure-prediction-baseline.md)
-- **Affects:** [Singularity Detector σ(x)](../arch/singularity-detector.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
+- **Affects:** [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E9 — Full Agent Trace Benchmark](../exp/e9-full-trace-benchmark.md)
 - **Math:** [Architecture.md §Catastrophe-Theoretic Enrichment](../Architecture.md#catastrophe-theoretic-enrichment)

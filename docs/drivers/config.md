@@ -43,7 +43,7 @@ device: cpu                                   # optional; "cpu" | "cuda:0" | ...
 | `schema_version` | str | semver | required | `"1.0"` | Bumped when fields change; readers compare on load. |
 | `grammar_spec_path` | str (path) | — | required | `./grammars/babyai.grammar.yaml` | Source of grammar; produces label set used by [Typed Score Record Contract](./typed-score-record.md). |
 | `graph_fsm_path` | str (path) | — | required | `./graphs/babyai.fsm.yaml` | Path to [Graph FSM Spec](./graph-fsm-spec.md); both halves load this exact file. |
-| `graph_fsm_source` | str (enum) | — | required | `"hand"` | `"hand"` loads from `graph_fsm_path`; `"compiled"` invokes [Grammar Compiler](../arch/grammar-compiler.md) on `grammar_spec_path` and uses its output. Both producers must emit equivalent artifacts; see V2 in [Ablation Flag Set §Variant axes](./ablation-flags.md#variant-axes-orthogonal-to-a0-a9). Defaults to `"hand"` until the compiler lands. |
+| `graph_fsm_source` | str (enum) | — | required | `"hand"` | `"hand"` loads from `graph_fsm_path`; `"compiled"` invokes [Grammar Compiler](../arch/substrate/grammar-compiler.md) on `grammar_spec_path` and uses its output. Both producers must emit equivalent artifacts; see V2 in [Ablation Flag Set §Variant axes](./ablation-flags.md#variant-axes-orthogonal-to-a0-a9). Defaults to `"hand"` until the compiler lands. |
 | `group_spec_path` | str (path) \| null | — | required iff `group_quotient_enabled` | `./groups/babyai.group.yaml` | Group action spec; ignored when ablation disables quotient. |
 | `embedding_dim` | int | dimensions | required | `64` | $d$ for $\mathbb{H}^d$; must equal `coordinates.dimension` in graph FSM spec. |
 | `temperature` | float | — | required | `0.8` | Softmax temperature $T$; range typically $[0.5, 2.0]$. |
@@ -62,14 +62,14 @@ device: cpu                                   # optional; "cpu" | "cuda:0" | ...
 - Readers MUST compare `schema_version` on load; on unsupported major version, abort with a clear error naming both observed and supported versions.
 
 **Producers:** human-authored YAML at `configs/*.yaml`; loaded by `config_loader.py` (driver code).
-**Consumers:** [CLI Runner](./cli-runner.md) (entry); arch components [Grammar Compiler](../arch/grammar-compiler.md), [Graph FSM](../arch/graph-fsm.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Typed Field Pipeline](../arch/typed-field-pipeline.md); exp components [Metric Collectors](../exp/metric-collectors.md), [Evidence-Level Tracker](../exp/evidence-tracker.md), every dataset adapter under `exp/dataset-*.md`.
+**Consumers:** [CLI Runner](./cli-runner.md) (entry); arch components [Grammar Compiler](../arch/substrate/grammar-compiler.md), [Graph FSM](../arch/graph/graph-fsm.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md); exp components [Metric Collectors](../exp/metric-collectors.md), [Evidence-Level Tracker](../exp/evidence-tracker.md), every dataset adapter under `exp/dataset-*.md`.
 
 ## Build steps
 
 1. Define a `ConfigSchema` Pydantic model (or dataclass with validators) covering every field in the table above; enforce types, enum membership for `ablation` and `dataset`, and the `group_spec_path` ↔ `group_quotient_enabled` invariant.
 2. Implement `config_loader.py` with `load(path) → ConfigSchema` and `dump(config, path)`; `load` reads `schema_version`, applies migration shims, and raises on unsupported versions.
 3. Author template configs `configs/mnist.yaml`, `configs/babyai-synthetic.yaml`, `configs/babyai.yaml`, `configs/alfworld.yaml`, `configs/scienceworld.yaml` with commented examples.
-4. Wire [Grammar Compiler](../arch/grammar-compiler.md), [Graph FSM](../arch/graph-fsm.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), and [Typed Field Pipeline](../arch/typed-field-pipeline.md) to accept a `ConfigSchema` instance instead of ad-hoc kwargs.
+4. Wire [Grammar Compiler](../arch/substrate/grammar-compiler.md), [Graph FSM](../arch/graph/graph-fsm.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), and [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md) to accept a `ConfigSchema` instance instead of ad-hoc kwargs.
 5. Wire [CLI Runner](./cli-runner.md) to call `config_loader.load`, merge CLI overrides (`--seed`, `--batch-size`, `--num-epochs`, `--device`) onto the loaded config, and write the merged result to `runs/<run_id>/config_snapshot.yaml` before any training/evaluation work begins.
 6. Add a regression test that loads each template, round-trips it, and validates field values match.
 7. Document migration steps inline next to `schema_version`; each version bump appends a note.
@@ -77,6 +77,6 @@ device: cpu                                   # optional; "cpu" | "cuda:0" | ...
 ## Links
 
 - **See also:** [Ablation Flag Set](./ablation-flags.md) (which flags are set), [Graph FSM Spec](./graph-fsm-spec.md) (what graph to load), [Typed Score Record Contract](./typed-score-record.md) (label set comes from grammar spec)
-- **Drives:** [CLI Runner](./cli-runner.md), [Grammar Compiler](../arch/grammar-compiler.md), [Graph FSM](../arch/graph-fsm.md), [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Typed Field Pipeline](../arch/typed-field-pipeline.md), [Evidence-Level Tracker](../exp/evidence-tracker.md)
+- **Drives:** [CLI Runner](./cli-runner.md), [Grammar Compiler](../arch/substrate/grammar-compiler.md), [Graph FSM](../arch/graph/graph-fsm.md), [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), [Evidence-Level Tracker](../exp/evidence-tracker.md)
 - **Driven by:** (none; this is root)
 - **Open:** (q01-config-variants — dataset-specific files override defaults, or profile selection?)

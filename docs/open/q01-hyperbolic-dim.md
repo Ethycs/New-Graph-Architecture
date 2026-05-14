@@ -14,11 +14,11 @@ The question is empirical and architectural: at what dimension does hyperbolic c
 
 Hyperbolic geometry promises efficient hierarchy encoding—volume grows exponentially, so tree-like branching separates cleanly. But hyperbolic distance computation, inversion, and gyrovector operations are expensive compared to Euclidean arithmetic. If the dimension needed is large (e.g., $d > 20$) or scales with graph size, the speedup evaporates.
 
-The answer gates [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md) and affects whether [Hyperbolic Embedding](../arch/hyperbolic-embedding.md) is viable for real agents.
+The answer gates [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md) and affects whether [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md) is viable for real agents.
 
 ## Interface
 
-**Affected zettels:** [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [Typed Field Pipeline](../arch/typed-field-pipeline.md), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md)
+**Affected zettels:** [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [Typed Field Pipeline](../arch/typed/typed-field-pipeline.md), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md)
 
 **Decision criteria:** 
 - Measure embedding distortion (geodesic vs. graph distance) at d = 2, 4, 8, 16.
@@ -37,5 +37,5 @@ The answer gates [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hype
 ## Links
 
 - **See also:** [How are IDF weights updated at runtime?](./q03-idf-runtime-schedule.md), [Does hyperbolic dimension reduction actually materialize at scale?](./q11-hyperbolic-vs-euclidean-tradeoff.md)
-- **Affects:** [Hyperbolic Embedding](../arch/hyperbolic-embedding.md), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md)
+- **Affects:** [Hyperbolic Embedding](../arch/hyperbolic/hyperbolic-embedding.md), [E3 — Hyperbolic vs Euclidean Embedding Sweep](../exp/e3-hyperbolic-vs-euclidean.md)
 - **Math:** [Architecture.md §Hyperbolic Task Space](../Architecture.md#hyperbolic-task-space-and-geometry)

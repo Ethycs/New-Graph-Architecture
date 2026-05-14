@@ -41,7 +41,7 @@ The e2e suite (`tests/e2e/test_e24_graph_extraction.py`) enforces:
 
 ## Links
 
-- **See also:** [Hidden State Harvester](../arch/hidden-state-harvester.md), [Bayesian Nonparametric K](../arch/bayesian-nonparametric-k.md), [Forward Backward](../arch/forward-backward.md), [Posterior Mask](../arch/posterior-mask.md).
+- **See also:** [Hidden State Harvester](../arch/substrate/hidden-state-harvester.md), [Bayesian Nonparametric K](../arch/energy/bayesian-nonparametric-k.md), [Forward Backward](../arch/energy/forward-backward.md), [Posterior Mask](../arch/energy/posterior-mask.md).
 - **Driven by:** the graph-extraction proposal in [docs/proposals/graph-extraction.md](../proposals/graph-extraction.md).
 - **Drives:** the Wave B / C / D real-substrate runs (each will reuse `extract_graph` with a different harvester).
 - **Math:** the extraction is a map (trained network, corpus) → (Beta posterior on typed graph). Phase A's correctness on hand-authored vertex sets carries to extracted vertex sets conditional on the discretisation (the math is the same).

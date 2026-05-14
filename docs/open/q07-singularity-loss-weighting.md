@@ -1,8 +1,14 @@
 # Does σ(x) get weighted into loss, detection-only, or scheduled?
 
 **Cluster:** open
-**Status:** open
+**Status:** resolved-2026-05-12 — detection-only
 **Tags:** #singularity #loss #weighting #training
+
+## Status update — 2026-05-12 (Phase 23e)
+
+De-facto answered: **detection-only (variant B)**. σ is consumed at runtime by `SingularityDetector` and `ControlPolicy` to emit NORMAL / RECOVERY / ABSTAIN verdicts on the typed FSM and on the PCG-X regime graph, and is logged per step to `decision_trace.jsonl`. It is not multiplied into the training loss in any current TPN or PCG-X runner. See [research_log2.md §Phase 23e](../../research_log2.md) — "σ + control on the regime graph (the TPN ↔ PCG-X bridge)" — and [control-policy.md](../arch/substrate/control-policy.md).
+
+The "weighted into loss" and "scheduled" variants (A, C) were not ablated; the project converged on detection-only because (i) σ is bimodal in practice (Phase 23e: RECOVERY band 0.3 ≤ σ < 0.7 is empty), so loss-weighting would mostly be a no-op except on the rare ABSTAIN tail, and (ii) the partition-function probe (Phase 22a) and the predictive projection (Phase 23) provide the gradient-side structure that "σ in loss" was meant to give.
 
 ## What
 
@@ -23,7 +29,7 @@ This is load-bearing for [E4 — Singularity Detector Validation](../exp/e4-sing
 
 ## Interface
 
-**Affected zettels:** [Energy-Weighted Loss](../arch/energy-weighted-loss.md), [Singularity Detector σ(x)](../arch/singularity-detector.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md)
+**Affected zettels:** [Energy-Weighted Loss](../arch/energy/energy-weighted-loss.md), [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md)
 
 **Decision criteria:**
 - Compare test loss, rare-event recall, and singular-region accuracy across A, B, C.
@@ -42,5 +48,5 @@ This is load-bearing for [E4 — Singularity Detector Validation](../exp/e4-sing
 ## Links
 
 - **See also:** [How is the energy function E(x) specified or learned?](./q02-energy-function-spec.md), [Does singularity score σ(x) beat margin alone?](./q10-failure-prediction-baseline.md)
-- **Affects:** [Energy-Weighted Loss](../arch/energy-weighted-loss.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md)
+- **Affects:** [Energy-Weighted Loss](../arch/energy/energy-weighted-loss.md), [E4 — Singularity Detector Validation](../exp/e4-singularity-auroc.md), [E5 — IDF Rare-Stratum Weighting Ablation](../exp/e5-idf-ablation.md)
 - **Math:** [Experiments.md §E4-Singularity-Detector](../Experiments.md#e4--singularity-detector)

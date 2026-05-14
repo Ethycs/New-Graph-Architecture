@@ -42,13 +42,13 @@ File path convention: `runs/{experiment}_{ablation}_seed{seed}/decision_trace.js
 
 - Use [`drivers/jsonl_writer.py::JsonlWriter`](../../src/nga/drivers/jsonl_writer.py) for atomic line-buffered writes.
 - Construct a v1.1 row by composing the v1.0 dict with the additive fields; let `None` defaults flow through for runners that haven't been upgraded.
-- Reuse existing atoms: [Singularity Detector](../arch/singularity-detector.md) for σ, [Behavioral Stratum Tagger](../arch/behavioral-stratum-tagger.md) for stratum, [Energy Function](../arch/energy-function-E.md) for energy, [Stratified Partition Function](../arch/stratified-partition-function.md) for partition, [Control Policy](../arch/control-policy.md) for the verdict, [Axis Quantizer](../arch/axis-quantizer.md) for typed-axis vertex IDs.
+- Reuse existing atoms: [Singularity Detector](../arch/singularity/singularity-detector.md) for σ, [Behavioral Stratum Tagger](../arch/singularity/behavioral-stratum-tagger.md) for stratum, [Energy Function](../arch/energy/energy-function-E.md) for energy, [Stratified Partition Function](../arch/energy/stratified-partition-function.md) for partition, [Control Policy](../arch/substrate/control-policy.md) for the verdict, [Axis Quantizer](../arch/hyperbolic/axis-quantizer.md) for typed-axis vertex IDs.
 - Validate post-write: `tests/unit/test_decision_trace_jsonl_v11.py` parses the file and asserts every row has the v1.1 fields present (even if null).
 
 ## Links
 
 - **See also:** [Results JSONL](./results-jsonl.md), [Metrics JSONL](./metrics-jsonl.md), [Typed Score Record](./typed-score-record.md), [Config](./config.md).
-- **Driven by:** every TPN runner (E0–E23) — the trace is the universal audit stream.
+- **Driven by:** every TPN runner over the typed FSM (E0–E23) and the PCG-X runner over the regime graph (E28, since Phase 23e). Same schema both ways; on the regime side the state names use the `regime_K` / `regime_unknown` convention and `mask.enabled` is `false` because PCG-X does not apply a hard mask to the prediction. The trace is substrate-agnostic.
 - **Drives:** post-hoc analysis tools (`aggregate.py`, `failure_margin_auroc`), the structural-AUROC computation, the audit-trail interpretability primitive proposed in `docs/proposals/graph-extraction.md`.
-- **Math:** the trace is a section of the typed product graph indexed by step; `output_node_tuple` is the node identity in [Product Graph](../arch/product-graph.md).
+- **Math:** the trace is a section of the typed product graph indexed by step; `output_node_tuple` is the node identity in [Product Graph](../arch/graph/product-graph.md).
 - **Open:** [[open.qNN-trace-versioning]] — under what conditions does a future schema bump break wire compatibility vs stay additive?
