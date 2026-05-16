@@ -10,7 +10,7 @@ The drivers cluster contains 8 atomic notes defining the shared contracts betwee
 - [Ablation Flag Set](./ablation-flags.md) — Boolean knobs A0–A9 controlling which components are enabled; keystone of the ablation sweep.
 - [metrics.jsonl](./metrics-jsonl.md) — Append-only stream of scalar metrics; single source of truth for all performance measurements.
 - [results.jsonl](./results-jsonl.md) — Append-only per-sample predictions and ground-truth; enables post-hoc failure analysis.
-- [decision_trace.jsonl](./decision-trace-jsonl.md) — Per-step interpretability stream; full chain typed-scores → mask → σ → energy → partition → control verdict → output node-tuple. The "audit by construction" wire format (substrate-agnostic; v1.1).
+- [decision_trace.jsonl](./decision-trace-jsonl.md) — Per-step interpretability stream; full chain typed-scores → mask → σ → energy → partition → control verdict → output node-tuple → regime named/residual labels. The "audit by construction" wire format (substrate-agnostic; v1.2 with Phase 26 labelled-hypergraph fields).
 - [CLI Runner](./cli-runner.md) — `python run.py --experiment Ek --ablation Aj` unified entry point for all training and evaluation.
 
 ## See also

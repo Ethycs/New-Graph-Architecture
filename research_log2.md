@@ -26,6 +26,564 @@ the top of this file.
 
 ---
 
+## 2026-05-14 — Phase 27 Step 1 + 1.5 — Sullivan log-law on Phase 24 σ traces: drift, not asymptote
+
+**Setup.** The cheapest single experiment from the Phase 27 plan in [`docs/interpretability-push.md`](docs/interpretability-push.md): on each Phase 24 GPT-2 `decision_trace.jsonl`, compute the running max $M(t) = \max_{s \leq t} -\log \Delta(\sigma(s))$, the ratio $r(t) = M(t)/\log(t+1)$, and the late-window mean $r_\infty$. Per the user's adjacent Cat Scanner / Patterson-Sullivan framework, if the substrate is PS-structured then $r(t) \to r_\infty$ and $d_{\text{eff}} = 2/r_\infty$. For GPT-2 the adjacent project measured $r_\infty \approx 0.95$, $d_{\text{eff}} \approx 2.1$.
+
+Four discriminants computed in parallel (`scripts/phase27_d_eff_measurement.py`):
+
+| Convention | Discriminant Δ | physical meaning |
+|---|---|---|
+| boundary / full | $1 - \sigma_{\text{total}}$ | deep excursions at σ → 1 |
+| normal / full | $\sigma_{\text{total}}$ | deep excursions at σ → 0 |
+| boundary / smooth | $1 - \sigma_{\text{margin+tie+stab}}$ | smooth subset, σ → 1 |
+| normal / smooth | $\sigma_{\text{margin+tie+stab}}$ | smooth subset, σ → 0 |
+
+The "smooth" subset drops the discrete signals (`loop`, `illegal`, `catastrophe_bias`) per the smooth-jet move from [`docs/interpretability-push.md`](docs/interpretability-push.md) (Whitney stratification + Mather finite determinacy assume smooth substrate, not piecewise-linear or discrete-saturated detectors).
+
+**Step 1 raw measurement.** All 20 fits (4 conventions × 5 grammars) converged by the rel_std < 5% criterion in the last 20% window:
+
+| Convention | mean $d_{\text{eff}}$ | std | in [2, 4] |
+|---|---|---|---|
+| boundary / full | **10.97** | 2.25 | 0/5 |
+| normal / full | **1.57** | 0.50 | 2/5 |
+| boundary / smooth | 0.64 | 0.10 | 0/5 |
+| normal / smooth | **1.49** | 0.44 | 1/5 |
+
+The two physically meaningful readings (normal/full and normal/smooth) land at $d_{\text{eff}} \approx 1.5$. json and listops sit closest to the framework's predicted [2, 4] range (2.09–2.28); the three Python grammars land at 1.03–1.39. Mean is below the user's adjacent measurement (~2.5) by roughly a factor of 1.7.
+
+The boundary readings are coding-scheme artefacts:
+
+- **boundary/full = 11** comes from `loop` saturating to 1.0 on ~30–44% of steps. $-\log(1 - \sigma)$ at σ=1 explodes; M plateaus immediately; $r_\infty = $ small / log(t) → tiny constant; $d_{\text{eff}} = 2/r_\infty$ → inflated. Not substrate geometry.
+- **boundary/smooth = 0.64** comes from smooth signals never approaching 1; M caps at a small ceiling; $r_\infty$ stays bounded; $d_{\text{eff}}$ is tiny. Also not substrate geometry.
+
+**Step 1.5 visualization (`scripts/phase27_visualize_d_eff.py`).** The rel_std < 5% diagnostic was misleading. Plotting M(t), the reference line $r_\infty \cdot \log(t+1)$, and r(t) for each grammar (PNGs in `runs/phase27_d_eff_trajectories/`) reveals:
+
+- **M(t) does grow roughly logarithmically** — the dashed reference line tracks the late-trajectory growth qualitatively. The Sullivan log-shape *is* present.
+- **r(t) is still decreasing through the tail under every convention.** Not a flat asymptote. The "converged" window-mean is just the value where the slowly-drifting curve happens to sit at trajectory length 144–2066.
+
+The mathematical reason is decomposable: $M(t) = c_0 + r_\infty \log t$ where $c_0$ is a burn-in constant from the first few deep excursions. Then $r(t) = c_0 / \log t + r_\infty$. The burn-in term decays only as $1/\log t$. For our traces, $\log(t) \in [5, 7.6]$ and the empirical $r(t)$ values suggest $c_0$ is *the same order as $r_\infty$* — so we're squarely in burn-in, not asymptote.
+
+Order-of-magnitude estimate of when burn-in falls to 10% of $r_\infty$: $\log t \gtrsim 10 c_0 / r_\infty \approx 30$, i.e. $t \approx e^{30} \approx 10^{13}$ steps. Not reachable on inference traces of finite real corpora.
+
+**The honest two-interpretation framing.**
+
+| Interpretation | What's happening | Asymptote at large t |
+|---|---|---|
+| **(A) PS-in-burn-in** | Substrate is genuinely Patterson-Sullivan. $r(t) \to r_\infty \in [1, 2]$ given exponentially more data. | exists; not visible at our trace lengths |
+| **(B) finite-mode saturation** | Substrate has ~10–36 distinct deep-σ excursions (one per regime). After visiting each, M saturates at $M_\infty$, $r(t) = M_\infty / \log t \to 0$. | does not exist; $d_{\text{eff}} = \infty$ in PS sense |
+
+Both interpretations fit our plots. The discriminating test is a 10×-100× trace-length extension: (A) shows M continuing to climb log-linearly and r flattening; (B) shows M plateauing to a ceiling and r continuing to decay aggressively.
+
+**Why the user's adjacent measurement gave $d_{\text{eff}} \approx 2.1$ and ours gives $\approx 1.5$ (under interpretation A).** The adjacent project measured on *parameter-space training trajectories* where 10⁶–10⁸ steps are natural and burn-in is washed out before measurement. Our inference traces on a frozen substrate are 10²–10³ steps. Even granted PS structure, the regimes are different by orders of magnitude in $\log t$, and our $r_\infty$ measurement is a window-mean of a trajectory that has not converged.
+
+**What this is and is not.**
+
+- This is **not a falsification** of the wider framework. The substrate's σ trajectory genuinely shows log-shape M growth, which is the qualitatively-right signature for PS.
+- This is **not a confirmation** either. We do not have a converged $r_\infty$ at our trace lengths; the headline "$d_{\text{eff}} \approx 1.5$" is the late-trajectory local slope, contaminated by an unknown burn-in offset.
+- This **is a positive diagnostic finding** about the limits of inference-trajectory σ as a Patterson-Sullivan discriminant. We learned that (a) σ has the right qualitative shape, (b) the trajectory lengths needed for asymptote are exponentially beyond what we can produce, (c) the marching-cubes program's tractability claim doesn't actually depend on PS convergence — it depends on the local dimension structure, which the M(t) shape is consistent with regardless of asymptote.
+
+**Implication for the marching-cubes program.** Independent of whether interpretation (A) or (B) is right, the substrate's interpretively-relevant excursions are *bounded in depth* on any finite corpus. The activation-space subspace explored by the trajectory has bounded "effective complexity" by direct measurement: M(t) at trajectory end is in the range 4–14 across grammars and conventions. This bounds the geometric reconstruction problem regardless of how we interpret the asymptote. The Phase 27 marching-simplices step (Step 4 in the plan) doesn't strictly need $d_{\text{eff}}$ to land on a particular value; it needs the trajectory to be locally low-dimensional, which we see.
+
+**Step 2 — 10×-longer traces (`scripts/phase27_long_traces.py`).** Re-ran E30 with `n_programs = 800` per grammar (vs default 80). Result: trajectories now 1534-22294 steps (10× expansion). Total wall-clock 186s on GPU. Re-measured + re-visualized.
+
+**Long-trace measurement (normal/full convention):**
+
+| grammar | short N | short $d_{\text{eff}}$ | long N | long $d_{\text{eff}}$ | direction |
+|---|---|---|---|---|---|
+| json | 643 | 2.09 | 7083 | 1.53 | $d_{\text{eff}}$ down |
+| listops | 144 | 2.24 | 1534 | 1.21 | $d_{\text{eff}}$ down |
+| python_big | 2066 | 1.03 | 22294 | 0.99 | $d_{\text{eff}}$ down slightly |
+| python_control | 1733 | 1.39 | 18249 | 1.10 | $d_{\text{eff}}$ down |
+| python_expr | 1612 | 1.13 | 14990 | 1.60 | **$d_{\text{eff}}$ up** |
+
+Aggregate normal/full: mean $d_{\text{eff}}$ went 1.57 → 1.29; normal/smooth: 1.49 → 1.29.
+
+**This rules out both (A) and (B) cleanly:**
+
+- **Not (A) Patterson-Sullivan in burn-in.** Under (A), all grammars should move in the same direction toward asymptote as t grows (whichever direction the deficit/excess pushes). 4 of 5 move one way, python_expr moves the other. That's inconsistent with a single asymptote being approached.
+- **Not (B) finite-mode saturation.** Under (B), all grammars should show $d_{\text{eff}} \to \infty$ (r → 0) as t grows. Instead, $d_{\text{eff}}$ stays bounded around 1.0-1.6 and varies non-monotonically.
+
+**Honest conclusion:** the Sullivan log-law does not give a robust $d_{\text{eff}}$ on inference-trajectory σ on this substrate at scales we can produce. The fitting machinery converges (rel_std < 5%) in every case, but the "asymptote" it converges to depends on trajectory length and grammar in ways inconsistent with a stable hyperbolic limit-set dimension.
+
+Visualization (`runs/phase27_long_d_eff_trajectories/`) confirms: M(t) shows roughly log-shape growth qualitatively, but r(t) plateaus are fuzzy regions of slow drift rather than sharp horizontal asymptotes. The numbers $d_{\text{eff}} \approx 1.0$-$1.6$ describe a *local rate* of M-growth, not a global asymptotic invariant.
+
+**What this means for the wider program:**
+
+1. **The user's adjacent ~2.5 measurement does not transfer to inference σ on a frozen pretrained substrate.** The framework was developed on parameter-space training trajectories where dynamics are fundamentally different (genuine geodesic flow on the loss-landscape manifold; 10⁶–10⁸ steps; smooth catastrophe-distance discriminant). Our setting (activation-space at inference, 10²–10⁴ steps, weighted σ ensemble as discriminant) is not that setting.
+2. **This is not a falsification of the wider master theorem (Whitney stratification + stratified partition function).** That framework lives on the substrate's geometric structure, independent of any dynamical-systems claim about trajectories.
+3. **The marching-cubes program needs to be justified empirically — not via $d_{\text{eff}}$.** The tractability claim was "essential subspace is small ⇒ marching simplices is cheap." We can salvage the tractability by direct measurement of trajectory-explored dimensionality (e.g. PCA / Krylov on activations), without depending on Patterson-Sullivan asymptote claims.
+4. **What we DO have from this experiment:** the substrate's σ trajectory has roughly log-shape M(t) growth with a late-trajectory slope in the range 1.0-2.0. That bounds the geometric reconstruction problem regardless of asymptote interpretation. The interpretively-relevant excursions are bounded in depth on any finite corpus.
+
+**Next step.** Pivot from PS-based justification to empirical-measurement-based justification of low effective dimensionality. Two cheap options to substitute for Phase 27 Step 2 (Krylov essential subspace) in the original plan:
+
+- **PCA / SVD on per-step activations.** Direct measurement of how much variance lives in the top-k dimensions across the trajectory. Gives a *direct* essential-dimension number with a well-defined statistical meaning (no Patterson-Sullivan asymptote needed).
+- **Participation ratio / effective rank.** Same data, different summary statistic — robust to PCA's specific projection choice.
+
+Either tells us "the trajectory really does live in a low-dimensional subspace" empirically without dependency on Patterson-Sullivan.
+
+**Files.** New: `scripts/phase27_d_eff_measurement.py`, `scripts/phase27_visualize_d_eff.py`, `scripts/phase27_long_traces.py`, `runs/phase27_d_eff.json`, `runs/phase27_long_d_eff.json`, `runs/phase27_long_traces_summary.json`, `runs/phase27_d_eff_trajectories/*.png` (short, 5 per-grammar + 1 overview), `runs/phase27_long_d_eff_trajectories/*.png` (long, same). No modified files.
+
+---
+
+## 2026-05-14 — Phase 26 — labelled hypergraph: own the semantic gap in the data structure
+
+**Proposal:** [`docs/proposals/labelled-hypergraph.md`](docs/proposals/labelled-hypergraph.md). Lift the PCG-X discrete regime graph $(V, E)$ to a labelled hypergraph where each regime carries (i) a canonical KL signature, (ii) a `named` coordinate dict, and (iii) a `residual` feature list, and each transition carries a feature-delta. The discrete graph is the strict projection.
+
+**Motivation.** The conversation pushing toward complete structural interpretability (consolidated in [`docs/interpretability-push.md`](docs/interpretability-push.md)) surfaced that PCG-X regimes silently bundled three different things into one opaque label: canonical statistical identity, human-meaningful label, and unnamed-but-canonical feature support. Owning the three layers separately in the data structure is the prerequisite for information-geometric K-choice (Phase 27.5), SAE feature labelling (Phase 28), and the marching-simplices geometric reconstruction (Phase 27).
+
+**What landed (atom-level build).**
+
+- Three new atoms in `src/nga/arch/`: `labelled_hypergraph.py` (Regime / Hyperedge / LabelledHypergraph), `kl_regime_signature.py` (KL distances + gap-detection threshold + union-find clustering), `sae_adapter.py` (Protocol + Identity / MockLabelled defaults; real pretrained SAE is Phase 28 work).
+- Decision-trace schema bump v1.1 → v1.2 (additive): `regime_named_label`, `regime_residual_features`, `regime_kl_signature_hash`, `feature_delta_at_transition`. v1.0/v1.1 rows continue to validate with new fields = None.
+- `docs/model-class.md` updated: the TPN's load-bearing commitment count goes from 5 to 6 (the labelled-hypergraph commitment); the formal tuple grows to include $\mathcal{H}$.
+- Atom docs: `docs/arch/graph/labelled-hypergraph.md`, `docs/arch/graph/kl-regime-signature.md`, `docs/arch/substrate/sae-adapter.md`.
+- 57 new unit tests across 4 files covering acceptance bars A1–A6.
+
+**What landed (composition on real artefacts).**
+
+`scripts/phase26_build_hypergraph.py` reads each Phase 24 GPT-2 run directory and writes `hypergraph.json` next to the existing `control_graph.json` and `decision_trace.jsonl`. Canonical signatures are computed from per-regime empirical next-regime conditionals harvested from `decision_trace.jsonl`; named coordinates lift the FSM `dominant_current_state` per regime; Beta(α, β) posteriors lift onto hyperedges from `control_graph.json` edges. `residual` and `feature_delta` are empty until an SAE is plugged in (Phase 28).
+
+Run output across the 5 Phase 24 grammars (seed 42, GPT-2 small, layer 6):
+
+| Grammar | Regimes | Edges | Steps | KL-suggested threshold | KL clusters | Projection ↔ (V,E) |
+|---|---|---|---|---|---|---|
+| listops | 7 | 15 | 144 | 35.80 | **2** | ✓ |
+| json | 25 | 118 | 643 | 3.39 | 24 | ✓ |
+| python_big | 23 | 108 | 2066 | 8.27 | **12** | ✓ |
+| python_control | 36 | 136 | 1733 | 6.61 | **27** | ✓ |
+| python_expr | 11 | 63 | 1612 | 43.81 | **1** | ✓ |
+
+The KL-clustering surfaces the K-choice diagnostic that the proposal predicted. Two extreme readings:
+
+- **python_expr collapses 11 → 1 cluster.** Every regime has a nearly-identical next-regime conditional distribution. Either the regimes share statistical successors (likely: transitive parser states that all flow into a common reduce/return step), or 11 is over-extraction at K = V for this grammar. The next experiment is to refine with K = (state, token) and see whether the cluster count rises.
+- **listops collapses 7 → 2 clusters.** Two genuinely distinct successor populations even though the projection head extracted 7 cells. Consistent with listops having two structural phases (operand-accumulation vs operator-reduction).
+- **python_control halves (36 → 27)** and **python_big drops 23 → 12.** A meaningful but not extreme behavioural quotient.
+- **json barely merges (25 → 24)** — most regimes have distinct successor distributions; the K = V partition is already near the information-geometric canonical K for this grammar.
+
+**Acceptance.**
+
+| Bar | Where | Status |
+|---|---|---|
+| A1 (JSON round-trip preserves structure) | `tests/unit/test_labelled_hypergraph.py` | green |
+| A2 (`as_discrete_graph` recovers original `(V, E)`) | `tests/unit/test_labelled_hypergraph.py` + e2e on 5 grammars | green |
+| A3 (schema 1.2 backward-compatible) | `tests/unit/test_decision_trace_jsonl_v12.py` | green |
+| A4 (KL matches analytic on hand-built two-regime case) | `tests/unit/test_kl_regime_signature.py` | green |
+| A5 (SAE adapter splits named vs residual on label dict) | `tests/unit/test_sae_adapter.py` | green |
+| A6 (hypergraph from Phase 24 fixtures is well-formed) | `tests/e2e/test_phase26_hypergraph_on_pcg.py` | green on all 5 grammars |
+
+Plus an extension of A6: the on-disk `hypergraph.json` artefacts round-trip canonically and the KL-cluster suggestion is recomputable from the artefact alone. 22 e2e tests pass; full suite is 389 passed, 24 skipped, 2 xfailed.
+
+**Interpretability calibration on real runs.** `interpretation_coverage` reads 1.00 across every regime in every grammar — because `named` carries one entry (the FSM dominant state) and `residual` is empty pending SAE plug-in. This is the *honest* current reading: "100% labelled with the labels we have, no opaque residual yet." Once Phase 28 lands a real SAE, residual fills in and coverage drops to a meaningful per-regime number. The structure carries this honestly rather than hiding it.
+
+**What this is and is not.**
+
+- This is the *scaffolding* step. The atoms exist, are tested, and have been demonstrated composable on real Phase 24 artefacts. Nothing about the substrate's interpretability has changed in this turn — what changed is the data structure that future steps will refine.
+- This is *not* the marching-simplices reconstruction (Phase 27), not the SAE plug-in (Phase 28), not a ControlPolicy upgrade. Those are downstream proposals; the proposal explicitly defers them.
+- The KL-cluster counts above are *suggestive*, not load-bearing — the gap-detection threshold is a heuristic, and on small per-regime support (e.g. listops, 144 steps for 7 regimes ⇒ ~20 samples per regime), the empirical conditionals are noisy. Re-running with K = (state, token) refinement is the next test that surfaces whether the over-merging (python_expr → 1 cluster) is the substrate's natural statistical structure or a sampling artefact.
+
+**Files touched.** New: `src/nga/arch/{labelled_hypergraph,kl_regime_signature,sae_adapter}.py`, `tests/unit/test_{labelled_hypergraph,kl_regime_signature,sae_adapter,decision_trace_jsonl_v12}.py`, `tests/e2e/test_phase26_hypergraph_on_pcg.py`, `scripts/phase26_build_hypergraph.py`, `docs/proposals/labelled-hypergraph.md`, `docs/arch/graph/{labelled-hypergraph,kl-regime-signature}.md`, `docs/arch/substrate/sae-adapter.md`, per-run `runs/E30_phase24_*/hypergraph.json`, `runs/phase26_summary.json`. Modified: `src/nga/drivers/decision_trace_jsonl.py` (schema 1.2), `docs/model-class.md` (sixth commitment), `docs/arch/_index.md`, `docs/proposals/_index.md`, `tests/integration/test_atom_census.py` (KNOWN_UNCONSUMED set for the three new atoms pending Phase 28 wire-in), `tests/unit/test_decision_trace_jsonl_v11.py` (version assertion loosened to `major == 1, minor >= 1`).
+
+**Honest next step.** The KL-cluster diagnostic on python_expr (11 → 1) is the most interesting finding — it's either telling us that K = V is wrong for that grammar (refine to (state, token)) or that the projection-head argmax is undercounting structural variation that the substrate carries. Phase 26.5 (one day, in scope of a follow-up proposal): re-extract python_expr at K = (state, token), recompute KL signatures, check whether the cluster count rises above 1. That tells us which interpretation is right, which directly informs whether Phase 27's marching-simplices target is the K = V regime graph or its (state, token) refinement.
+
+---
+
+## 2026-05-13 — Phase 25 — where in GPT-2 does the grammar-state structure live (layer-ablation sweep)
+
+### What we built
+
+`scripts/phase25_layer_ablation_sweep.py`. Phase 24 harvested at GPT-2
+block 6 of 12 because mid-layer was a defensible default; Phase 25
+runs E30 at five harvest layers — L0 (embedding output), L2 (early
+block), L6 (Phase 24 mid-layer default), L10 (late but not final),
+L12 (final block) — on all 5 grammars at the same seed=42 default. 25
+runs total, 101 s on a 6 GB GPU. Plus a per-layer visualization on
+python_control (V=37) at
+`runs/phase25_layer_evolution/python_control_layer_evolution.png`
+showing the regime graph's evolution through depth.
+
+### What we measured
+
+Per-layer mean across 5 grammars:
+
+| layer | mean purity | mean projection next-state acc |
+|---|---:|---:|
+| L0 (embedding) | 0.556 | 0.570 |
+| L2 (early) | 0.659 | 0.774 |
+| L6 (mid — Phase 24 default) | 0.750 | 0.916 |
+| **L10 (late)** | **0.785** | **0.960** |
+| L12 (final block) | 0.673 | 0.825 |
+
+The peak-then-drop shape holds on every grammar individually, not just
+on the mean.
+
+### Architectural reading
+
+**Mid-to-late layers carry the grammar state structure; the final
+block does not.** The pattern matches the "BERT rediscovers the
+classical NLP pipeline" finding (Tenney et al. 2019) and the broader
+linear-probing literature: early layers carry lexical / surface
+information, mid-to-late layers carry syntactic / state-structural
+information, the final layer specialises for the LM head's
+next-token-prediction job and represents output-token information
+rather than grammar state. PCG-X reads this same gradient through the
+network without any architectural changes to the substrate.
+
+**Embedding output (L0) already gives 0.556 mean purity** — well above
+the 1/V ≈ 3-9% chance baseline. Pure token embeddings carry meaningful
+state info, presumably because Python tokens have strongly predictive
+role context (`(` always opens, `def` always introduces a definition)
+and GPT-2's pretraining priors capture enough of that to half-resolve
+the FSM partition lexically. **The L0→L10 lift of +22.9 pp is what
+the transformer's contextualisation buys you beyond pure
+tokenisation.** That's a useful bound for understanding what the
+substrate is doing.
+
+**The L6→L10 gain is within seed-variance noise.** Honest caveat: a
+fresh re-run of the Phase 24 sweep with `_DEFAULT_HARVEST_LAYER`
+flipped to 10 produced mean purity 0.750, not 0.785. Same seed, same
+substrate, same data; the projection head's training picks up
+CUDA-nondeterministic init/optimisation differences across separate
+Python processes. The Phase 25 within-sweep L10 number (0.785) is
+valid as a same-process layer comparison, but the absolute number at
+any single layer fluctuates ~±0.02 across processes. The qualitative
+pattern (L0 << mid/late >> L12; gaps of 10-25 pp) is robust because
+the differences swamp the noise band. The L6 vs L10 distinction
+specifically does not survive a single-seed cross-process check.
+
+**The default `_DEFAULT_HARVEST_LAYER` therefore stays at 6**, with
+a code comment pointing to Phase 25's finding. Bumping the default
+to L10 on the strength of one within-sweep reading is not warranted
+by the data we have; multi-seed bootstrap (Phase 26) is the right
+next step.
+
+### What this validates and what it doesn't
+
+- ✓ The peak-then-drop layer profile of grammar-state information in
+  GPT-2 is robust on every grammar individually.
+- ✓ Token embeddings alone carry a non-trivial fraction of the FSM
+  partition; deep contextualisation contributes the remaining ~23 pp
+  on average.
+- ✓ The final transformer block is the *wrong* place to harvest for
+  state-extraction purposes; its representation is shaped by
+  next-token-prediction, not state. This is empirically clear at
+  −11.2 pp purity vs the peak.
+- ✗ "L10 is empirically best" is not justified by one seed — the
+  L6/L10 gap is within CUDA-nondeterministic seed variance.
+- ✗ The pattern is reported on GPT-2 small only. Whether the peak
+  layer scales with model depth (does TinyLlama-1.1B at 22 layers
+  peak at L18? at L14? at L10?) is the obvious next test.
+
+### What's next
+
+- **Phase 26 — multi-seed bootstrap on E30, plus layer sweep on a
+  larger pretrained substrate.** Two pieces, each useful: (a) Run
+  Phase 24 at L6 and L10 across 5 seeds [42-46] to convert the
+  current single-seed reading into a confidence band that
+  distinguishes them (or not). (b) Run Phase 25 (layer sweep) on
+  TinyLlama-1.1B-Chat-v1.0 (22 layers, already DVC-tracked under
+  `~/models/hf/hub/`) to test whether the peak layer scales with
+  depth as a fraction (~10/12 ≈ 0.83 for GPT-2 → ~18/22 for
+  TinyLlama) or stays at a fixed absolute count.
+
+Suite: 513 passed, 9 xfailed, 1 pre-existing E0 env-flake (unchanged
+from Phase 24).
+
+---
+
+## 2026-05-13 — Phase 24 — PCG-X on a frozen pretrained GPT-2 substrate (deferred Tier 3, finally shipped)
+
+### What we built
+
+`src/nga/exp/e30_pcg_extractor_pretrained.py`. The substrate is now a
+**frozen pretrained** causal LM — GPT-2 small (124M, 12 transformer
+blocks, 768-d hidden) loaded from the DVC-tracked `~/models/hf/hub/`
+area with `TRANSFORMERS_OFFLINE=1` so the loader never reaches out to
+the hub. The model is not trained on the grammar; it ships with
+whatever priors HuggingFace's GPT-2 already learned on WebText. PCG-X
+asks whether useful grammar-shaped regimes emerge from activations of
+a substrate that was never told this grammar exists. This is the
+proposal's deferred Tier-3 claim, executed end-to-end.
+
+Mechanics:
+
+- `_PretrainedSubstrate` class wraps `AutoModelForCausalLM` and
+  `AutoTokenizer.from_pretrained("gpt2", use_fast=True)`. Forward is
+  frozen (`requires_grad_(False)` on every parameter). The substrate
+  is loaded onto the first available CUDA device when present.
+- Per-program harvest: build the program text by joining
+  `observed_token`s with single-space separators, tokenize once with
+  `return_offsets_mapping=True`, and for each grammar step find the
+  **last BPE position** whose start-char is strictly inside the
+  step's char range — that BPE's mid-layer (block 6 of 12) hidden
+  state is the harvested `h` for that step. One forward pass per
+  program; activations stay on GPU until the per-step gather.
+- The rest of the PCG-X pipeline is unchanged from E28: the harvested
+  `h` is fed to `PredictiveProjection` (next-state CE + entropy
+  regression + failure BCE), argmax partition, bisimulation merge,
+  and the σ + control trace emitter from E28 (substrate-agnostic).
+- Eval-slice mode is supported (`eval_n_programs`, `eval_seed`) and
+  composes the same way: re-harvest with the frozen substrate, map
+  argmax FSM states through the trained `cluster_map`, fall through
+  to `regime_unknown` for argmaxes outside the training cell set.
+
+Environment changes: `transformers >=4.40,<5.0` added to
+`pyproject.toml`; `pytorch` replaced with `pytorch-gpu` plus
+`system-requirements.cuda = "12"` so conda-forge can resolve CUDA
+builds. Two RTX 2060s detected by `torch.cuda.is_available()`. Full
+5-grammar Phase 24 sweep completes in 22 s on a 6 GB GPU.
+
+### Results — 5-grammar sweep (seed 42, default `n_programs=80`)
+
+| grammar | V | argmax cells | merged regimes | mean purity | proj next-state acc | wall-clock |
+|---|---:|---:|---:|---:|---:|---:|
+| listops | 11 | 10 | 10 | **0.918** | 0.993 | 5.2 s |
+| python_expr | 14 | 11 | 11 | 0.710 | 0.895 | 4.1 s |
+| python_big | 24 | 23 | 23 | 0.758 | 0.930 | 4.6 s |
+| json | 26 | 25 | 25 | 0.673 | 0.896 | 2.8 s |
+| python_control | 37 | 36 | 36 | 0.761 | 0.924 | 4.3 s |
+| **mean** | — | — | — | **0.764** | **0.928** | — |
+
+Comparison table against the previously documented substrates on the
+same 5 grammars at the same `n_programs=80`:
+
+| substrate | grammar-specific training? | mean purity | mean projection next-state accuracy |
+|---|:---:|---:|---:|
+| Wave-C MLP, state-conditioned (E26 / E28) | yes (50 epochs, state-conditioned input) | 0.790 | 0.972 |
+| **Frozen GPT-2 (E30, this phase)** | **no** | **0.764** | **0.928** |
+| Small transformer trained from scratch (E29) | yes (causal LM on the grammar's tokens) | 0.663 | 0.630 |
+
+### Architectural reading
+
+**A pretrained substrate that has never seen the grammar matches the
+state-conditioned MLP that was trained on it.** Mean purity 0.764 vs
+0.790 — a 2.6 pp gap that's well within the multi-seed noise the
+project's prior sweeps report. The projection-side next-state accuracy
+is also competitive (0.928 vs 0.972), and on listops it's
+indistinguishable.
+
+**The frozen pretrained substrate decisively beats the from-scratch
+transformer trained on the grammar.** Purity 0.764 vs 0.663 (+10.1 pp);
+projection next-state accuracy 0.928 vs 0.630. GPT-2's general-Python
+priors carry more state-relevant structure than 22 epochs of training a
+two-layer 64-dimensional transformer from zero. This is the cleanest
+piece of evidence so far that **the binding constraint on PCG-X regime
+quality is substrate quality, not pipeline-fit**: the argmax partition
++ bisimulation merge faithfully reflects whatever state structure the
+substrate carries, and a model that has seen orders of magnitude more
+Python during pretraining outperforms a tiny model trained only on
+this corpus.
+
+**No truncation: 0/5 grammars exceed GPT-2's 1024-token context.**
+The longest tokenized program across the sweep fits well under the
+cap; the existing synthetic grammars are short enough that the model's
+context window is not a constraint here. (For real-corpus follow-ups
+this would need a chunking strategy.)
+
+**Argmax cells ≈ V on every grammar.** Same Myhill-Nerode coarsening
+"for free" that E28 / E29 showed; the bisimulation merge does nothing
+on top of argmax for any of these substrates. The merge stage remains
+empirically inert across all three substrate families.
+
+### What this validates and what it doesn't
+
+- ✓ PCG-X is operational on a real off-the-shelf pretrained substrate.
+- ✓ Pretrained activations carry usable state structure for novel
+  grammars they were not trained on, at quality comparable to a
+  bespoke trained-on-the-grammar MLP.
+- ✓ The σ + control bridge (Phase 23e) drops in unchanged; the trace
+  artefacts are identical in shape across substrates.
+- ✗ Strict-Hamming universal graph extraction (Hamming ≤ 0.05) is
+  still not the deliverable; `aligned_hamming_at_target_V` is `nan` on
+  most grammars (n_regimes is V − 1 rather than V) and the bar was
+  retired in Phase 23.
+- ✗ Single-seed result. Multi-seed bootstrap is the natural next
+  step before quoting these numbers as a publication-grade claim;
+  for now 0.764 mean is a seed-42 reading.
+- ✗ Single substrate, single layer. GPT-2 small at layer 6/12 is a
+  defensible default but not a sweep. Whether layer choice or model
+  size moves purity meaningfully is open.
+
+### What's next
+
+- **Multi-seed bootstrap on E30** (5 grammars × 5 seeds). Trivial
+  rerun; converts the seed-42 reading into a real number with a
+  confidence band.
+- **Layer ablation.** Run E30 at harvest_layer ∈ {2, 6, 10}. Phase 23d
+  used layer 0 on the from-scratch transformer; whether deeper
+  layers of a pretrained model help or hurt is an open empirical
+  question for which the pipeline is now ready.
+- **Larger substrate.** TinyLlama-1.1B and Qwen2.5-1.5B-Instruct are
+  already DVC-tracked under `~/models/hf/hub/`. Drop them into E30 by
+  changing `model_id`; the alignment path is identical. The
+  hypothesis worth testing: does substrate size correlate with
+  regime purity in the regime range where the substrate is not
+  already saturating? GPT-2 at 0.928 projection accuracy is close
+  to saturated on these tiny synthetic grammars; the test is more
+  honest on a harder corpus.
+
+Suite: 513 passed, 9 xfailed, 1 pre-existing E0 env-flake. +1 vs Phase
+23e — counted as seed-variance on a previously borderline pass. No new
+tests added in this phase; E30's coverage via the smoke and the
+phase24 sweep script is operational-only. An E30 e2e test mirroring
+E28's would be a defensive follow-up.
+
+---
+
+## 2026-05-12 — Phase 23e — σ + control on the regime graph (the TPN ↔ PCG-X bridge)
+
+### What we built
+
+The σ ensemble (`SingularityDetector`) and the 3-branch control policy
+(`ControlPolicy`) shipped in Phases 2 + 5 and have operated on the
+typed FSM ever since. Up to Phase 23d the PCG-X regime graph existed
+in parallel: extraction emitted `control_graph.json` with per-regime
+support / failure-rate / margin-to-tie stats, but no σ was computed
+per step on the regime graph, no control verdict was issued, and no
+`decision_trace.jsonl` was produced. The symbolic stack (Phases 0–19)
+and the regime stack (Phase 23) lived in separate trees.
+
+This phase wires them together.
+
+* **`ControlPolicy` substrate-agnostic.** The constructor now accepts
+  either `fsm: GraphFSM` (existing) or `legality_matrix: np.ndarray`
+  (new, mutually exclusive). The BFS that drives ROUTE_RECOVERY reads
+  from whichever adjacency was supplied. This is the one architectural
+  change required to let the policy operate on any graph, not just a
+  typed FSM. 4 new unit tests in `test_control_policy.py` cover the
+  adjacency path, mutual-exclusion validation, shape validation, and
+  equivalence-to-FSM-path on a shared cyclic graph.
+* **`_emit_regime_decision_trace` helper in `e28_pcg_extractor`.**
+  After the regime graph is built, the runner iterates the harvested
+  steps, computes σ on the model's FSM-level prediction (margin and
+  decision-tie from the next-state softmax) and on the regime-graph
+  context (illegality = `(current_regime, predicted_regime)` not in
+  the regime edge set; loop-risk = predicted regime revisited within
+  the last 5 same-program steps), and runs `ControlPolicy.decide()`
+  with the regime legality adjacency and goal regimes (those with
+  failure_rate < 0.05). One `DecisionTraceRecord` per step lands in
+  `output_dir/decision_trace.jsonl`. Stabilizer and KL-surprise signals
+  are zero in v1 (no group action on regimes, no empirical
+  conditional yet).
+* **Held-out-eval mode (`eval_n_programs` / `eval_seed` kwargs).** When
+  set, `_harvest_eval_slice` samples a fresh dataset with `eval_seed`,
+  runs the trained encoder + projection over it, and emits the trace
+  on data the projection never saw. Argmax FSM states that never
+  appeared as a regime cell in training are mapped to a sentinel
+  `regime_unknown` and auto-fire the illegal signal. Rows carry
+  `ablation="A0_eval"` so train and held-out traces are joinable.
+* **Readout-heads zero-gradient bug pinned (not fixed).** The
+  `TorchEnergyTrainer` registers `_readout_heads` as `nn.ModuleDict`
+  and feeds them into Adam via `self.parameters()`, but the forward
+  pass computes `logits = -d_poincare + legality_bias[current_state]`
+  and never calls the readout. So the heads get zero gradient. Fixing
+  this is an architectural decision (additive composition vs.
+  replacement, single- vs. multi-type dispatch); the
+  honest minimum is to record the pathology so a future fix flips it
+  visible. `test_readout_heads_receive_gradient` is `pytest.xfail(strict=True)` —
+  XPASS means someone wired the readout and the marker should be
+  removed.
+
+### What we measured
+
+5-grammar sweep at `N_PROGRAMS=40` with default training, train trace
+vs. held-out eval trace (`eval_seed=43`, projection sees train only).
+`scripts/phase23e_sigma_control_stats.py`, 18.1 s total CPU:
+
+| grammar | slice | rows | NORM% | ABS% | mean σ | unkn% | mean illegal_signal |
+|---|---|---:|---:|---:|---:|---:|---:|
+| listops | train | 49 | 100.0 | 0.0 | 0.052 | 0.0 | 0.000 |
+| listops | eval | 94 | 100.0 | 0.0 | 0.101 | 0.0 | 0.000 |
+| python_expr | train | 866 | 100.0 | 0.0 | 0.030 | 0.0 | 0.000 |
+| python_expr | eval | 648 | 100.0 | 0.0 | 0.034 | 0.0 | 0.023 |
+| python_big | train | 985 | 100.0 | 0.0 | 0.027 | 0.0 | 0.000 |
+| python_big | eval | 1149 | 100.0 | 0.0 | 0.048 | 0.0 | 0.080 |
+| json | train | 353 | 100.0 | 0.0 | 0.081 | 0.0 | 0.000 |
+| json | eval | 338 | 99.7 | 0.3 | 0.101 | 0.0 | 0.086 |
+| python_control | train | 766 | 100.0 | 0.0 | 0.033 | 0.0 | 0.000 |
+| python_control | eval | 981 | 99.6 | 0.4 | 0.065 | 0.0 | 0.102 |
+
+### Architectural reading
+
+**The integration is operational and discriminates train vs. eval on
+every grammar.** Mean σ on held-out data is 1.1× (python_expr) to 2.0×
+(listops, python_big) the training σ. The discrimination comes from
+the illegal signal: exactly 0 on training (every observed transition
+is by construction a regime edge) and 2.3–10.2% on held-out (the
+edge set saturates the training distribution but not the held-out
+one). The signal that the σ ensemble was designed to fire on — novel
+transitions — fires.
+
+**ABSTAIN finally fires on eval data** for the two grammars where
+illegal-signal density is highest (json 0.3%, python_control 0.4%).
+This is the first time in the project's history that the control
+layer is anything other than a passthrough on the regime graph.
+
+**RECOVERY band (0.3 ≤ σ < 0.7) is empty across the sweep.** The σ
+distribution appears bimodal: most rows stay low (margin alone
+contributes < 0.1), and the rare degenerate rows jump straight to
+the ABSTAIN band because the illegal signal contributes +0.2 in a
+single hit and combines with a low-margin contribution to clear 0.7
+in one step. At this dataset scale the intermediate band does not
+populate. Whether recovery is rare *in principle* or just *at this
+scale* is the natural follow-up; the existing 0.3/0.7 thresholds
+were calibrated for FSM-level predictions, not regime-level ones.
+
+**No unknown-regime predictions (`unkn% = 0` everywhere).** The
+trained regime graph fully covers the argmax FSM states encountered
+on the held-out slice — the projection never wanders outside the
+training cell set. So OOD detection here is *transition-based*, not
+*state-based*; the diagnostic resolution is finer than "out of
+distribution / not out of distribution" — it's "this particular
+regime-to-regime jump was unseen at train time."
+
+### What this validates and what it doesn't
+
+- ✓ The σ ensemble, ControlPolicy, and `decision_trace.jsonl` are now
+  substrate-agnostic. They operate identically on the typed FSM
+  (E0/E1/E9) and the PCG-X regime graph (E28).
+- ✓ σ discriminates held-out from training on every grammar; the
+  illegal signal is the cleanest separator.
+- ✓ The architectural-closure item §14(f) in `docs/results.md`
+  ("σ + control_policy integration … bridges the symbolic stack to
+  the regime extraction layer") is delivered, except for the
+  TorchEnergyTrainer readout-heads side-quest, which is pinned
+  rather than fixed.
+- ✗ ROUTE_RECOVERY is empty in this sweep; whether the band is rare
+  or just under-calibrated at N=40 is open.
+- ✗ Unknown-regime predictions never occur; held-out generalisation
+  uses the same argmax FSM states as training, just in different
+  transition pairs. To exercise the unknown path properly we'd need
+  inputs the projection actually cannot place (e.g. adversarial
+  token sequences, or a held-out grammar).
+
+### What's next
+
+- **Threshold recalibration / AUROC.** Compute AUROC of σ at
+  separating train vs. eval rows per grammar. If σ has discrimination
+  but the 0.3/0.7 thresholds are mis-calibrated, recovery and abstain
+  bands populate after a small shift; if AUROC ~ 0.5, the integration
+  is sound but the signal is not strong enough on synthetic grammars
+  alone.
+- **TorchEnergyTrainer readout-heads (the side-quest).** Wire the
+  registered heads into forward — but the design call (additive vs.
+  replacing the distance-based logits, dispatch by type vs. global
+  head) is not obvious from the existing code, and most callers use
+  a single global head (`type_ids=[0]`), so the minimal fix is
+  probably `logits = -d + bias[cur] + head[0](observation)`. XFAIL
+  flips XPASS the moment that line lands.
+- **Pretrained-substrate test (the Tier-3 deferred from the original
+  proposal).** Run PCG-X on activations from a small pretrained
+  transformer (GPT-2 small) on synthetic Python expressions. The
+  question is whether useful regimes emerge from a substrate the
+  project did not train.
+
+Suite: 512 passed, 9 xfailed, 1 pre-existing E0 env-flake. +12 passes
+(5 ControlPolicy adjacency-path tests + 7 E28 e2e tests) and +1 xfail
+(readout-heads zero-gradient pin) since Phase 23d.
+
+---
+
 ## 2026-05-08 — Phase 23d — transformer substrate: PCG-X is operational; the Phase 23b prediction is falsified
 
 ### What we built

@@ -15,10 +15,14 @@ packages = ["src/nga"]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
+[tool.pixi.system-requirements]
+cuda = "12"
+
 [tool.pixi.pypi-dependencies]
 new-graph-architecture = { path = ".", editable = true }
 pydantic = "==2.9.2"
 scikit-learn = "==1.5.2"
+transformers = ">=4.40,<5.0"
 
 [tool.pixi.dependencies]
 python = "3.11.*"
@@ -26,7 +30,8 @@ numpy = ">=1.26"
 scipy = ">=1.13"
 pyyaml = "6.0.*"
 networkx = ">=3.3"
-pytorch = ">=2.0,<3.0"
+pytorch-gpu = ">=2.0,<3.0"
+matplotlib = ">=3.7,<4.0"
 
 [tool.pixi.feature.dev.dependencies]
 ruff = "==0.6.9"

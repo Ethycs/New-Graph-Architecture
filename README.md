@@ -44,6 +44,12 @@ The full graph-extraction proposal (`docs/proposals/graph-extraction.md`) was ex
 
 The reframing — **Predictive Control Graph Extractor (PCG-X)** — replaces the deliverable. Partition by `argmax(next-state-head)` upstream rather than recovering the partition via quotient downstream; emit a `control_graph.json` artefact with regime nodes (`support / failure_rate / entropy_mean / mean_margin / dominant_current_state / purity`) and edges (`probability / Beta(α, β) / count`). The mantra is **partition by prediction, merge by behavior, control by intervention**. PCG-X is operational on both a state-conditioned MLP substrate (mean purity 0.79, 14.9× chance) and a small causal transformer trained from scratch (mean purity 0.66, with substrate next-token accuracy 0.63); substrate quality is the binding constraint and PCG-X faithfully reflects it. See [`docs/results.md`](docs/results.md) §11 for the full synthesis and the [graph-extraction proposal's Decision section](docs/proposals/graph-extraction.md#decision--outcome-recorded-2026-05-12) for the pre-registered-hypothesis verdict table.
 
+**Phase 23e closed the TPN ↔ PCG-X bridge.** `ControlPolicy` is now substrate-agnostic (accepts either a `GraphFSM` or a raw `legality_matrix`), and E28 emits the standard `decision_trace.jsonl` per step on the regime graph with σ + 3-branch control verdict. A held-out-eval mode (`eval_n_programs` / `eval_seed`) emits the trace on data the projection never saw; the illegal signal — exactly 0 on training, 2–10% on held-out across all 5 grammars — is the first time in the project's history that σ discriminates inputs the model knows from inputs it does not. ABSTAIN finally populates on eval data for the two highest-illegal-density grammars (json 0.3%, python_control 0.4%). Reproduce: `pixi run -e dev python scripts/phase23e_sigma_control_stats.py`.
+
+**Phase 24 shipped the deferred Tier-3 test: PCG-X on a frozen pretrained GPT-2 substrate** (E30, `src/nga/exp/e30_pcg_extractor_pretrained.py`). The substrate is GPT-2 small (124M, 12 layers, 768-d), loaded from the DVC-tracked `~/models/hf/hub/` with `TRANSFORMERS_OFFLINE=1`; it is not trained on the grammar in any way. Per-program harvest tokenizes with GPT-2's BPE and uses the fast tokenizer's offset_mapping to align each grammar step to one mid-layer (block 6) hidden state. Mean purity across all 5 grammars: **0.764 (vs 0.790 for the trained-on-grammar state-conditioned MLP from E28; vs 0.663 for the from-scratch transformer trained on the grammar from E29)**. A pretrained substrate that has never seen the grammar matches the substrate that was trained on it, and decisively beats the from-scratch transformer that was. Cleanest evidence so far that the binding constraint on PCG-X regime quality is substrate quality, not pipeline-fit. Full 5-grammar sweep in 22 s on a 6 GB GPU; reproduce via `pixi run -e dev python scripts/phase24_gpt2_substrate_sweep.py`.
+
+**Phase 25 swept layers** (`scripts/phase25_layer_ablation_sweep.py`) and found the peak-then-drop pattern that "BERT rediscovers the classical NLP pipeline" predicts: mean purity 0.556 at L0 (embedding output, ≈chance × 8) → 0.659 at L2 → 0.750 at L6 → **0.785 at L10** → 0.673 at L12 (the final block, which specialises for the LM head's next-token job). The shape holds on every grammar individually. **The L0→L10 lift of +22.9 pp is what deep contextualisation buys over pure tokenisation.** The L6/L10 gap specifically is within CUDA-nondeterministic seed variance (~±0.02-0.03) so the default `harvest_layer` stays at 6 until multi-seed bootstrap (Phase 26) settles it. The qualitative finding — final block is the *wrong* place to harvest for state extraction — is robust. 101 s on GPU for the 5×5 sweep.
+
 ## Phase 19B — self-supervised structural discovery on real medical data
 
 The first real-world (non-synthetic) result. **No disease labels used in training.** Clustered 4920 patients × 132 binary symptoms in the Poincaré ball via `typed_latent_clustering` (Riemannian k-means at K = 20, 41, 80), ran Phase A forward-backward over Markov-randomised symptom orderings, evaluated post-hoc against ground-truth diagnoses.
@@ -141,6 +147,7 @@ aggregate.py      cross-run metrics aggregator with PASS/FAIL verdicts
 | E27 | partition-function probe encoder (Phase 22a; mechanism validated, strict bar still missed) |
 | E28 | Predictive Control Graph Extractor on MLP substrate (Phase 23 MVP; emits `control_graph.json`) |
 | E29 | PCG-X on small causal transformer trained from scratch (Phase 23d; falsified the adversarial-head prediction honestly) |
+| E30 | PCG-X on frozen pretrained GPT-2 (Phase 24; mean purity 0.764 across 5 grammars — matches the trained-on-grammar MLP, beats the from-scratch transformer) |
 
 ## The atom census as executable specification
 
@@ -152,7 +159,7 @@ Run it: `pixi run -e dev python -m pytest tests/integration/test_atom_census.py 
 
 ## Test suite
 
-Current state: **501 collected, 500 passed, 8 xfailed, 1 pre-existing E0 env-flake** for documented reasons (the q10 σ_uplift bar on margin-saturated grammars; E7 reservoir-vs-end-to-end accuracy at natural noise). Reproduce: `pixi run -e dev python -m pytest tests/ -q`.
+Current state: **523 collected, 513 passed, 9 xfailed, 1 pre-existing E0 env-flake** for documented reasons (the q10 σ_uplift bar on margin-saturated grammars; E7 reservoir-vs-end-to-end accuracy at natural noise; the Phase 23e XFAIL pinning the `TorchEnergyTrainer` readout-heads zero-gradient bug). Reproduce: `pixi run -e dev python -m pytest tests/ -q`.
 
 ## What this is good at
 

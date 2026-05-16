@@ -8,13 +8,14 @@ A TPN is a finite-state typed protocol (the FSM) carrying a network of per-type 
 
 ## What's load-bearing
 
-Five commitments together define the class. None alone is novel; the *composition* is.
+Six commitments together define the class. None alone is novel; the *composition* is.
 
 1. **Typed graph as the system's full state space.** Every observation, prediction, signal is a vertex in some typed axis; the system's true state is a node-tuple in their Cartesian product. No raw floats cross the system's interfaces.
 2. **Per-type submodels.** Each type (or group of FSM states sharing a type) gets its own classifier head. Submodels are independent; specialisation is structural.
 3. **Hard structural mask + soft σ-routing.** The legality matrix zeros illegal predictions absolutely; σ-routing's three branches (NORMAL / RECOVERY / ABSTAIN) handle ambiguity that the mask doesn't address.
 4. **Bayesian posterior over the protocol itself.** The mask isn't a hand-coded constant; it's a Beta(α, β) posterior per edge that grows from observation. The classical Baum-Welch + Bayesian M-step performs cold-start induction.
 5. **Information-geometric foundation.** Fisher information sets natural-gradient learning rates; KL divergence is the canonical loss; Cramér-Rao bounds set sample-sufficiency stopping rules. The architecture's hyperbolic + Riemannian + Bayesian apparatus is information geometry by construction.
+6. **Labelled hypergraph with residual.** The regime graph is not a discrete graph of opaque labels — it is a hypergraph where each regime carries its canonical statistical identity (a KL-distance signature), its human-named coordinates (FSM state, dominant SAE features), and its residual feature support (mathematically canonical but semantically unnamed) as separate fields. Each transition is a hyperedge carrying the feature-delta across the boundary. The data structure owns the semantic gap rather than hiding it; the interpretability claim is calibrated per regime by `len(named) / (len(named) + len(residual))`. The current discrete regime graph $(V, E)$ is the strict projection of this structure (forget enrichment ⇒ recover $(V, E)$ unchanged).
 
 ## What a TPN is good at
 
@@ -59,7 +60,7 @@ The same point applies to the *audited graph*: σ + the 3-branch `ControlPolicy`
 
 A TPN is a tuple
 
-$$\mathcal{T} = (V, T, \tau, M, \{f_t\}_{t\in T}, \pi, \sigma, g)$$
+$$\mathcal{T} = (V, T, \tau, M, \{f_t\}_{t\in T}, \pi, \sigma, g, \mathcal{H})$$
 
 where:
 
@@ -68,7 +69,8 @@ where:
 - $M \in \{0, 1\}^{V \times V}$ is a hard legality mask induced by a Beta posterior $\pi_{ij} = \mathrm{Beta}(\alpha_{ij}, \beta_{ij})$ via $M_{ij} = \mathbb{1}[\mathbb{E}\pi_{ij} > 1/2]$ (strict; the skeptical-prior default);
 - $\{f_t\}_{t \in T}$ is a family of per-type classifier heads $f_{\tau(i)} \colon \mathcal{X} \to \Delta^{|V|-1}$, whose outputs are masked by row $M_{i, \cdot}$ before softmax;
 - $\sigma \colon \mathcal{X} \times V \to \mathbb{R}_{\geq 0}$ is the singularity score $\sigma = \sum_k w_k \cdot s_k$ over the additive ensemble $s_k \in$ {margin, decision-tie, illegal, loop-risk, KL-surprise, stabiliser}, governing the routing $\rho \in$ {NORMAL, RECOVERY, ABSTAIN};
-- $g$ is a Riemannian metric: hyperbolic on prototypes ($\mathbb{D}^d$, the open Poincaré ball), Fisher–Rao on $\pi$, and the natural gradient $g^{-1} \nabla$ governs all gradient updates.
+- $g$ is a Riemannian metric: hyperbolic on prototypes ($\mathbb{D}^d$, the open Poincaré ball), Fisher–Rao on $\pi$, and the natural gradient $g^{-1} \nabla$ governs all gradient updates;
+- $\mathcal{H} = (R, E_H)$ is the **labelled hypergraph** with $R$ a set of regimes each carrying a canonical KL signature, a `named` coordinate dict, and a `residual` feature list, and $E_H$ a set of hyperedges each carrying a feature-delta and an optional boundary geometry. The discrete graph $(V, E)$ is the strict projection $\pi_{\mathrm{disc}}(\mathcal{H})$ — backward compatibility is automatic.
 
 A TPN is **trained** in two phases:
 

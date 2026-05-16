@@ -100,6 +100,6 @@ None gated by the e2e suite yet — Phase 24 ships as an operational result, not
 
 ## Links
 
-- **See also:** [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [Control Policy](../arch/substrate/control-policy.md), [Predictive Projection](../arch/predictive-projection.md), [Bisimulation Quotient](../arch/graph/bisimulation-quotient.md), [Decision Trace JSONL](../drivers/decision-trace-jsonl.md).
+- **See also:** [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [Control Policy](../arch/substrate/control-policy.md), [Predictive Projection](../arch/graph/predictive-projection.md), [Bisimulation Quotient](../arch/graph/bisimulation-quotient.md), [Decision Trace JSONL](../drivers/decision-trace-jsonl.md).
 - **Driven by:** [E28 PCG Extractor](./e28-pcg-extractor.md) (the PCG-X reference runner; E30 reuses its helpers), [Graph extraction proposal](../proposals/graph-extraction.md) (Tier 3 — pretrained substrate, finally executed).
 - **Drives:** multi-seed bootstrap on E30; layer ablation (harvest_layer sweep); larger DVC-tracked substrates (TinyLlama-1.1B, Qwen2.5-1.5B); real-corpus follow-up where GPT-2's 1024 token context will require chunking.

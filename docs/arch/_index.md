@@ -1,6 +1,6 @@
 # Architecture Atoms
 
-The arch cluster contains 46 atomic notes covering the typed-graph inference architecture: state machines, scoring, hyperbolic embedding, singularity detection, group-quotient compression, energy-based training, substrate adapters, and the PCG-X control bridge. Atoms are grouped into 7 themed sub-folders that correspond to the section headings below. Read these if you want to understand *how* the system works at a design level.
+The arch cluster contains 50 atomic notes covering the typed-graph inference architecture: state machines, scoring, hyperbolic embedding, singularity detection, group-quotient compression, energy-based training, substrate adapters, the PCG-X control bridge, and the Phase 26 labelled-hypergraph layer. Atoms are grouped into 7 themed sub-folders that correspond to the section headings below. Read these if you want to understand *how* the system works at a design level.
 
 Note: the original `whitney-stratification-layer` and `partition-function-Z` atoms have been replaced by [Behavioral Stratum Tagger](singularity/behavioral-stratum-tagger.md) (P2, discrete categorical tagging, no geometry) and [Stratified Partition Function](energy/stratified-partition-function.md) (P5, merges Whitney stratification of the extruded manifold with the Boltzmann normalization $Z$). See [build-order.md](../build-order.md) for the rationale.
 
@@ -16,6 +16,11 @@ Note: the original `whitney-stratification-layer` and `partition-function-Z` ato
 - [Singularity Extraction Functor](graph/singularity-extraction-functor.md) — Inverse direction: maps a singularity back to its combinatorial graph skeleton.
 - [Product Graph](graph/product-graph.md) — Typed product of per-axis FSMs; the node-tuple identity space for outputs.
 - [Bisimulation Quotient](graph/bisimulation-quotient.md) — Behavioural merge of cells into regimes; the discrete shadow of the stratified partition (PCG-X foundation).
+- [Labelled Hypergraph](graph/labelled-hypergraph.md) — Phase 26 lift of the PCG-X regime graph: regimes carry KL signature + named coordinates + residual features; transitions are hyperedges carrying feature-deltas.
+- [KL Regime Signature](graph/kl-regime-signature.md) — Coordinate-free KL fingerprint of a regime's conditional output distribution; powers principled K-choice and regime identity (Phase 26).
+- [Predictive Projection](graph/predictive-projection.md) — Phase 23 projection `h → z` with next-state / entropy / failure / optional adversarial-token heads; the partition signal feeding PCG-X.
+- [Labelled Hypergraph](graph/labelled-hypergraph.md) — Lifts the regime graph to a hypergraph carrying named labels + residual features per regime; owns the semantic gap explicitly.
+- [KL Regime Signature](graph/kl-regime-signature.md) — Coordinate-free KL signatures and gap-detection thresholding for canonical regime identity.
 
 ### Typed Scoring — `typed/`
 
@@ -74,6 +79,8 @@ This bucket carries the encoder, the readout-side glue, the grammar compiler tha
 - [Hidden State Harvester](substrate/hidden-state-harvester.md) — Extraction of activations from the substrate (Phase 20+); the input side of graph extraction.
 - [Grammar Compiler](substrate/grammar-compiler.md) — DSL that compiles declarative state-type specs into typed graphs, prototypes, and legality masks.
 - [Control Policy](substrate/control-policy.md) — σ-thresholded NORMAL / RECOVERY / ABSTAIN router; substrate-agnostic decision surface consumed by both the typed FSM and the PCG-X regime graph (Phase 23e).
+- [SAE Adapter](substrate/sae-adapter.md) — Protocol over a sparse-feature decomposer with identity + mock implementations; named-vs-residual feature split used by the labelled hypergraph (Phase 26 interface; Phase 28 will land a real pretrained SAE).
+- [SAE Adapter](substrate/sae-adapter.md) — Sparse feature decomposition with named/residual split; produces the per-regime feature labels consumed by the labelled hypergraph.
 
 ## See also
 

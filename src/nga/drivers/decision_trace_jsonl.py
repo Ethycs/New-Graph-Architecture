@@ -60,9 +60,35 @@ New fields:
         position) but more interpretable in raw JSONL because keys are
         named. Both should be populated when convenient.
 
-``check_supported`` only enforces SUPPORTED_MAJOR == 1, so both "1.0" and
-"1.1" continue to pass. Runners that populate v1.0 fields only continue
-working without change.
+``check_supported`` only enforces SUPPORTED_MAJOR == 1, so "1.0", "1.1",
+and "1.2" all continue to pass. Runners that populate v1.0 fields only
+continue working without change.
+
+Schema 1.2
+----------
+Schema 1.2 is the labelled-hypergraph extension: each step's regime carries
+its named/residual decomposition and its canonical-signature hash, and the
+transition carries the feature-delta crossed at this step. This makes the
+semantic-gap accounting first-class on the wire — a v1.2 row says exactly
+what fraction of the regime's structure is human-labelled.
+
+New fields (all default None for backward compatibility):
+
+  - ``regime_named_label``: dict[str, str] | None
+        The regime's named coordinates active at this step, e.g.
+        ``{"fsm_state": "q_open", "sae_dominant": "f_142_eiffel"}``.
+
+  - ``regime_residual_features``: list[str] | None
+        Feature IDs (typically SAE feature indices as strings) that fire in
+        this regime but lack a human label.
+
+  - ``regime_kl_signature_hash``: str | None
+        Short hex hash of the regime's KL-canonical signature; joins to a
+        ``hypergraph.json`` snapshot file in the same run dir.
+
+  - ``feature_delta_at_transition``: dict[str, float] | None
+        Signed feature-delta across this step's transition (positive =
+        feature turned on, negative = feature turned off).
 """
 from __future__ import annotations
 
@@ -77,7 +103,7 @@ from nga.drivers._version import (
 )
 from nga.drivers.jsonl_writer import JsonlWriter, read_jsonl
 
-DECISION_TRACE_SCHEMA_VERSION = "1.1"
+DECISION_TRACE_SCHEMA_VERSION = "1.2"
 
 __all__ = [
     "DECISION_TRACE_SCHEMA_VERSION",
@@ -312,6 +338,37 @@ class DecisionTraceRecord(BaseModel):
 
     Redundant with ``output_node_tuple`` (same identities by position) but more
     interpretable in raw JSONL because keys are named. ``None`` for v1.0 records.
+    """
+
+    # -- labelled hypergraph (Schema 1.2, additive) ---------------------
+    regime_named_label: dict[str, str] | None = None
+    """The regime's named coordinates active at this step.
+
+    e.g. ``{"fsm_state": "q_open", "sae_dominant": "f_142_eiffel"}``.
+    ``None`` for runners that have not adopted the labelled-hypergraph
+    convention (v1.0 / v1.1 records).
+    """
+
+    regime_residual_features: list[str] | None = None
+    """Feature IDs that fire in this regime but lack a human label.
+
+    Typically SAE feature indices rendered as strings. ``None`` for v1.0 /
+    v1.1 records.
+    """
+
+    regime_kl_signature_hash: str | None = None
+    """Short hex hash of the regime's KL-canonical signature.
+
+    Joins this trace row to a ``hypergraph.json`` snapshot file in the same
+    run directory. ``None`` for v1.0 / v1.1 records.
+    """
+
+    feature_delta_at_transition: dict[str, float] | None = None
+    """Signed feature-delta across this step's transition.
+
+    Positive values denote features that turned on in the destination
+    regime relative to the source; negative values denote features that
+    turned off. ``None`` for v1.0 / v1.1 records.
     """
 
 

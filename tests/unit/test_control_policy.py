@@ -5,6 +5,7 @@ selection, and threshold inclusivity convention.
 """
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from nga.arch.control_policy import ControlPolicy, ControlPolicyResult
@@ -208,3 +209,91 @@ def test_already_at_goal_falls_back() -> None:
     assert result.decision == "ROUTE_NORMAL"
     assert result.chosen_action == 77
     assert "unavailable" in result.reason
+
+
+# ---------------------------------------------------------------------------
+# legality_matrix path (substrate-agnostic adjacency, e.g. PCG-X regime graphs)
+# ---------------------------------------------------------------------------
+
+
+def test_legality_matrix_recovery_bfs_first_step() -> None:
+    """Raw adjacency drives the same BFS as a GraphFSM would.
+
+    Adjacency for a 4-node cycle 0->1->2->3->0; BFS from 0 to {2} picks 1.
+    """
+    legality = np.zeros((4, 4), dtype=bool)
+    legality[0, 1] = True
+    legality[1, 2] = True
+    legality[2, 3] = True
+    legality[3, 0] = True
+    policy = ControlPolicy(
+        theta_normal=0.3,
+        theta_abstain=0.7,
+        legality_matrix=legality,
+        goal_states=[2],
+    )
+    result = policy.decide(sigma=0.5, model_prediction=99, current_state=0)
+    assert result.decision == "ROUTE_RECOVERY"
+    assert result.chosen_action == 1
+
+
+def test_legality_matrix_unreachable_goal_falls_back() -> None:
+    """Disconnected adjacency: no path from 0 to {3} → recovery_unavailable."""
+    legality = np.zeros((4, 4), dtype=bool)
+    legality[0, 1] = True
+    legality[2, 3] = True  # 0,1 and 2,3 are disconnected components.
+    policy = ControlPolicy(
+        theta_normal=0.3,
+        theta_abstain=0.7,
+        legality_matrix=legality,
+        goal_states=[3],
+    )
+    result = policy.decide(sigma=0.5, model_prediction=42, current_state=0)
+    assert result.decision == "ROUTE_NORMAL"
+    assert result.chosen_action == 42
+    assert "unavailable" in result.reason
+
+
+def test_legality_matrix_fsm_mutually_exclusive() -> None:
+    """Passing both fsm and legality_matrix is rejected at construction time."""
+    fsm = _make_cyclic_fsm()
+    legality = np.eye(4, dtype=bool)
+    with pytest.raises(ValueError, match="not both"):
+        ControlPolicy(
+            theta_normal=0.3,
+            theta_abstain=0.7,
+            fsm=fsm,
+            legality_matrix=legality,
+            goal_states=[1],
+        )
+
+
+def test_legality_matrix_must_be_square() -> None:
+    """Non-square legality_matrix is rejected with a clear error."""
+    bad = np.zeros((3, 5), dtype=bool)
+    with pytest.raises(ValueError, match="square"):
+        ControlPolicy(
+            theta_normal=0.3,
+            theta_abstain=0.7,
+            legality_matrix=bad,
+            goal_states=[1],
+        )
+
+
+def test_legality_matrix_equivalent_to_fsm_path() -> None:
+    """For the same adjacency, FSM path and raw-matrix path produce the same decision."""
+    fsm = _make_cyclic_fsm()
+    legality = np.asarray(fsm.legality_matrix, dtype=bool)
+    fsm_policy = ControlPolicy(
+        theta_normal=0.3, theta_abstain=0.7, fsm=fsm, goal_states=[2]
+    )
+    raw_policy = ControlPolicy(
+        theta_normal=0.3,
+        theta_abstain=0.7,
+        legality_matrix=legality,
+        goal_states=[2],
+    )
+    fsm_result = fsm_policy.decide(sigma=0.5, model_prediction=0, current_state=0)
+    raw_result = raw_policy.decide(sigma=0.5, model_prediction=0, current_state=0)
+    assert fsm_result.decision == raw_result.decision
+    assert fsm_result.chosen_action == raw_result.chosen_action

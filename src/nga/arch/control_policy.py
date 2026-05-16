@@ -5,7 +5,10 @@ match the ``ControlAction`` schema in ``drivers/decision_trace_jsonl.py``:
 
   - σ < θ_normal           → ROUTE_NORMAL: trust the model's prediction.
   - θ_normal ≤ σ < θ_abstain → ROUTE_RECOVERY: override with the next state on
-        the FSM-shortest-path from ``current_state`` to the nearest goal state.
+        the BFS-shortest-path from ``current_state`` to the nearest goal state.
+        The adjacency comes from either a ``GraphFSM`` (the original typed
+        FSM use case) or a raw ``legality_matrix`` (e.g. the PCG-X regime
+        graph) — recovery is substrate-agnostic.
   - σ ≥ θ_abstain          → ABSTAIN: emit the sentinel action ``-1``.
 
 Threshold convention
@@ -16,10 +19,11 @@ about model trust); a σ exactly equal to ``θ_abstain`` enters the abstain
 band (abstaining is preferred when in doubt about recovery). This makes the
 two boundaries strictly monotone: increasing σ never re-grants trust.
 
-Recovery is best-effort. When ``fsm`` or ``goal_states`` are missing, when
-``current_state`` is ``None`` (no graph location yet), or when no goal is
-reachable from ``current_state`` under the legality matrix, the policy falls
-through to ROUTE_NORMAL with a ``reason`` string that ends in
+Recovery is best-effort. When neither ``fsm`` nor ``legality_matrix`` is
+supplied, when ``goal_states`` is missing, when ``current_state`` is
+``None`` (no graph location yet), or when no goal is reachable from
+``current_state`` under the legality adjacency, the policy falls through
+to ROUTE_NORMAL with a ``reason`` string that ends in
 ``"recovery_unavailable"`` so downstream traces can audit why.
 
 Dependencies: numpy + stdlib only.
@@ -73,8 +77,13 @@ class ControlPolicy:
     theta_abstain:
         Upper σ boundary. σ ≥ θ_abstain abstains.
     fsm:
-        Optional ``GraphFSM`` used by ROUTE_RECOVERY for BFS over the
-        legality matrix. Required only if recovery can fire.
+        Optional ``GraphFSM`` whose ``legality_matrix`` is used by
+        ROUTE_RECOVERY for BFS. Mutually exclusive with ``legality_matrix``.
+    legality_matrix:
+        Optional square boolean adjacency, shape ``(n, n)``, used by
+        ROUTE_RECOVERY for BFS. Lets recovery operate on any graph (e.g.
+        the PCG-X regime graph) — not just a typed ``GraphFSM``. Mutually
+        exclusive with ``fsm``.
     goal_states:
         Optional list of integer column indices that recovery should steer
         toward. Any reachable goal will do; BFS picks the closest. Required
@@ -86,6 +95,7 @@ class ControlPolicy:
         theta_normal: float = 0.3,
         theta_abstain: float = 0.7,
         fsm: GraphFSM | None = None,
+        legality_matrix: np.ndarray | None = None,
         goal_states: list[int] | None = None,
     ) -> None:
         if not (0.0 <= theta_normal <= theta_abstain <= 1.0):
@@ -93,9 +103,24 @@ class ControlPolicy:
                 "Thresholds must satisfy 0.0 <= theta_normal <= theta_abstain <= 1.0; "
                 f"got theta_normal={theta_normal}, theta_abstain={theta_abstain}."
             )
+        if fsm is not None and legality_matrix is not None:
+            raise ValueError(
+                "Pass either fsm or legality_matrix, not both."
+            )
         self._theta_normal = float(theta_normal)
         self._theta_abstain = float(theta_abstain)
         self._fsm = fsm
+        if legality_matrix is not None:
+            adj = np.asarray(legality_matrix, dtype=bool)
+            if adj.ndim != 2 or adj.shape[0] != adj.shape[1]:
+                raise ValueError(
+                    f"legality_matrix must be a square 2-D array; got shape {adj.shape}"
+                )
+            self._legality: np.ndarray | None = adj
+        elif fsm is not None:
+            self._legality = np.asarray(fsm.legality_matrix, dtype=bool)
+        else:
+            self._legality = None
         self._goal_states = list(goal_states) if goal_states is not None else None
 
     # ------------------------------------------------------------------
@@ -149,12 +174,16 @@ class ControlPolicy:
             )
 
         # RECOVERY band (θ_normal ≤ σ < θ_abstain). Try BFS.
-        if self._fsm is None or self._goal_states is None or not self._goal_states:
+        if (
+            self._legality is None
+            or self._goal_states is None
+            or not self._goal_states
+        ):
             return ControlPolicyResult(
                 decision="ROUTE_NORMAL",
                 chosen_action=int(model_prediction),
                 reason=(
-                    f"sigma={sigma:.4f} in recovery band but no fsm/goals; "
+                    f"sigma={sigma:.4f} in recovery band but no fsm/legality/goals; "
                     "recovery_unavailable"
                 ),
             )
@@ -199,7 +228,7 @@ class ControlPolicy:
 
         ``-1`` signals "no path"; the caller falls back to ROUTE_NORMAL.
         """
-        if self._fsm is None or not self._goal_states:
+        if self._legality is None or not self._goal_states:
             return -1
         path = self._bfs_shortest_path(current_state, list(self._goal_states))
         if len(path) < 2:
@@ -207,15 +236,17 @@ class ControlPolicy:
         return int(path[1])
 
     def _bfs_shortest_path(self, src: int, goals: list[int]) -> list[int]:
-        """BFS over the FSM legality matrix; return ``[src, ..., goal]`` or ``[]``.
+        """BFS over the legality adjacency; return ``[src, ..., goal]`` or ``[]``.
 
-        The matrix entry ``legality_matrix[i, j]`` is True iff ``i -> j`` is a
-        legal transition. The first goal popped from the queue is the closest
-        (BFS guarantees shortest unweighted path).
+        The matrix entry ``legality[i, j]`` is True iff ``i -> j`` is a
+        legal transition. Source comes either from the FSM passed to the
+        constructor or from the raw ``legality_matrix`` argument. The first
+        goal popped from the queue is the closest (BFS guarantees shortest
+        unweighted path).
         """
-        if self._fsm is None:
+        if self._legality is None:
             return []
-        legality: np.ndarray = self._fsm.legality_matrix
+        legality: np.ndarray = self._legality
         v = legality.shape[0]
         if not (0 <= src < v):
             return []

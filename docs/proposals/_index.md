@@ -4,8 +4,8 @@ Research proposals for substantial new work that is not yet in scope of the day-
 
 ## Index
 
-- [graph-extraction.md](graph-extraction.md) — Universal Graph Extraction: recovering Typed Protocol Networks from homogeneously trained substrates.
-- [labelled-hypergraph.md](labelled-hypergraph.md) — Labelled Hypergraph with Residual: owning the semantic gap in the data structure (Phase 26 atoms + schema, prerequisite to Phase 27/28).
+- [graph-extraction.md](graph-extraction.md) — Universal Graph Extraction: recovering Typed Protocol Networks from homogeneously trained substrates. **Status:** evaluated — H₀ falsified; reframed and shipped as PCG-X.
+- [labelled-hypergraph.md](labelled-hypergraph.md) — Labelled Hypergraph with Residual: owning the semantic gap in the data structure (Phase 26 atoms + schema, prerequisite to Phase 27/28). **Status:** accepted-2026-05-14, atoms + v1.2 schema shipped.
 
 ## Adding a proposal
 

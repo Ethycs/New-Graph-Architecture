@@ -228,6 +228,43 @@ def test_gradients_flow_to_prototypes():
     assert g.norm().item() > 0.0
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Known plumbing gap: TorchEnergyTrainer registers _readout_heads as "
+        "nn.ModuleDict (so Adam picks up their parameters via "
+        "self.parameters()) but never invokes them in forward(). Forward "
+        "logits come from -d_poincare + legality_bias only, so the readout "
+        "heads receive zero gradient. Wiring them into the autograd graph is "
+        "an architectural decision (additive composition vs. replacement, "
+        "single- vs. multi-type dispatch); until that is resolved this test "
+        "pins the bug so a future fix flips it XPASS and removes this marker."
+    ),
+)
+def test_readout_heads_receive_gradient():
+    """Pin the readout-heads zero-gradient pathology so the bug is tracked.
+
+    The test goes through ``forward`` (not ``step``) so we can directly read
+    each parameter's ``.grad`` after a single backward. If any readout-head
+    parameter has nonzero gradient norm, the test passes and the XFAIL
+    marker should be removed.
+    """
+    trainer = _make_trainer(with_readout=True, seed=11)
+    obs, cur, nxt = _synthetic_batch(4, 4, batch_size=4, seed=12)
+    out = trainer.forward(obs, cur, nxt)
+    out["loss"].backward()
+    assert trainer._readout_heads is not None
+    grad_norms: list[float] = []
+    for head in trainer._readout_heads.values():
+        for p in head.parameters():
+            assert p.requires_grad
+            grad_norms.append(0.0 if p.grad is None else float(p.grad.norm()))
+    assert any(g > 0.0 for g in grad_norms), (
+        "readout-head parameters received zero gradient — they are not in "
+        "the autograd graph; see XFAIL reason for the integration gap."
+    )
+
+
 def test_gradients_flow_to_posterior():
     trainer = _make_trainer(seed=7)
     obs, cur, nxt = _synthetic_batch(4, 4, batch_size=4, seed=8)

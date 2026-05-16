@@ -52,6 +52,7 @@ specification:
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import resource
 import time
@@ -66,6 +67,7 @@ except ImportError:  # pragma: no cover
     torch = None  # type: ignore[assignment]
 
 from nga.arch.bisimulation_quotient import quotient_by_bisimulation
+from nga.arch.control_policy import ControlPolicy
 from nga.arch.forward_backward import (
     bayesian_m_step_beta,
     expected_counts_observed,
@@ -76,6 +78,13 @@ from nga.arch.predictive_projection import (
     PredictiveProjection,
     PredictiveProjectionConfig,
     train_predictive_projection,
+)
+from nga.arch.singularity_detector import SingularityDetector
+from nga.drivers.decision_trace_jsonl import (
+    ControlAction,
+    DecisionTraceRecord,
+    MaskAction,
+    open_decision_trace_writer,
 )
 from nga.exp.e25_extraction_torch import GRAMMAR_DISPATCH
 from nga.exp.e26_extraction_trained_encoder import (
@@ -204,8 +213,20 @@ def run_e28(
     n_projection_train_epochs: int = 30,
     target_n_regimes: int | None = None,
     adversarial_token_weight: float = 0.0,
+    eval_n_programs: int | None = None,
+    eval_seed: int | None = None,
 ) -> E28Result:
-    """Predictive Control Graph Extractor MVP run on one grammar."""
+    """Predictive Control Graph Extractor MVP run on one grammar.
+
+    When ``eval_n_programs`` (and optionally ``eval_seed``) is provided,
+    the σ + control decision_trace.jsonl is emitted on a fresh dataset
+    sampled with ``eval_seed`` (defaulting to ``seed + 1``) — not on the
+    training data. The trained projection runs forward over the held-out
+    inputs; argmax FSM states that never appeared as a regime cell during
+    training map to a sentinel ``regime_unknown`` and fire the illegal
+    signal. Existing ``control_graph.json`` artefact is unchanged either
+    way (it always reflects the training-set regime extraction).
+    """
     if torch is None:
         raise ImportError("torch is required for E28")
     if grammar not in GRAMMAR_DISPATCH:
@@ -493,6 +514,57 @@ def run_e28(
         json.dumps(control_graph, indent=2)
     )
 
+    # ---- σ + control trace on the regime graph ----
+    # The σ ensemble and 3-branch control policy operate on whichever graph
+    # the system is auditing. Here the audited graph is the PCG-X regime
+    # graph (not the typed FSM); the trace records both the model's
+    # confidence signals (margin, decision-tie) and the regime-level
+    # decisions (illegality, recovery, abstention).
+    # FSM-state → regime mapping derived from the bisimulation cluster_map.
+    # Reused by both the train- and eval-slice trace branches; FSM states
+    # that never appeared as an argmax cell map to _UNKNOWN_REGIME.
+    fsm_to_regime = np.full(int(V), _UNKNOWN_REGIME, dtype=np.int64)
+    for fsm_state, compact_idx in cell_to_idx.items():
+        fsm_to_regime[int(fsm_state)] = int(quotient.cluster_map[compact_idx])
+
+    if eval_n_programs is not None:
+        eval_logits, eval_predicted_regimes, eval_program_ids = _harvest_eval_slice(
+            fsm=fsm,
+            dispatch=dispatch,
+            base_encoder=base_encoder,
+            projection=projection,
+            fsm_to_regime=fsm_to_regime,
+            eval_n_programs=int(eval_n_programs),
+            eval_seed=(
+                int(eval_seed) if eval_seed is not None else int(seed) + 1
+            ),
+            n_fsm_states=int(V),
+        )
+        trace_logits = eval_logits
+        trace_predicted_regimes = eval_predicted_regimes
+        trace_program_ids = eval_program_ids
+        trace_label = "eval"
+    else:
+        # Training-set trace: predicted regime IS merged_labels[i].
+        trace_logits = next_logits
+        trace_predicted_regimes = merged_labels.astype(np.int64)
+        trace_program_ids = program_ids
+        trace_label = "train"
+
+    _emit_regime_decision_trace(
+        output_dir=output_dir,
+        run_id=run_id,
+        seed=int(seed),
+        next_logits=trace_logits,
+        predicted_regimes=trace_predicted_regimes,
+        program_ids=trace_program_ids,
+        fsm_to_regime=fsm_to_regime,
+        regimes=regimes,
+        regime_edges=edges,
+        n_regimes=n_regimes,
+        trace_label=trace_label,
+    )
+
     # Aggregate result.
     mean_failure = float(
         np.mean([r.failure_rate for r in regimes if r.support > 0])
@@ -535,3 +607,271 @@ def run_e28(
         total_wall_clock_seconds=float(total),
         peak_memory_kb=float(_peak_memory_kb()),
     )
+
+
+# ---------------------------------------------------------------------------
+# σ + control trace on the regime graph
+# ---------------------------------------------------------------------------
+
+
+_THETA_NORMAL = 0.3
+_THETA_ABSTAIN = 0.7
+_GOAL_FAILURE_RATE_THRESHOLD = 0.05
+_LOOP_WINDOW = 5
+_UNKNOWN_REGIME = -1
+
+
+def _regime_name(regime_id: int) -> str:
+    """``regime_K`` for valid IDs, ``regime_unknown`` for the -1 sentinel."""
+    return "regime_unknown" if regime_id == _UNKNOWN_REGIME else f"regime_{regime_id}"
+
+
+def _harvest_eval_slice(
+    *,
+    fsm: GraphFSM,
+    dispatch: dict,
+    base_encoder: "_TrainableEncoder",
+    projection: PredictiveProjection,
+    fsm_to_regime: np.ndarray,
+    eval_n_programs: int,
+    eval_seed: int,
+    n_fsm_states: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Run the trained encoder + projection over a held-out dataset.
+
+    Returns
+    -------
+    eval_logits:
+        ``(n_eval_steps, n_fsm_states)`` projection next-state logits.
+    predicted_regimes:
+        ``(n_eval_steps,)`` regime id per step; argmax FSM states that
+        never appeared as a training-set regime cell map to
+        ``_UNKNOWN_REGIME``.
+    program_ids:
+        ``(n_eval_steps,)`` per-step sequence id.
+    """
+    eval_ds = dispatch["loader"](fsm, eval_n_programs, eval_seed)
+    seq_attr = dispatch["sequence_id_attr"]
+    program_ids = np.asarray(
+        [int(getattr(s, seq_attr)) for s in eval_ds.samples], dtype=np.int64
+    )
+    current_states = eval_ds.current_states.astype(np.int64)
+
+    V = n_fsm_states
+    state_onehot = np.zeros((eval_ds.X.shape[0], V), dtype=np.float64)
+    state_onehot[np.arange(eval_ds.X.shape[0]), current_states] = 1.0
+    X_conditioned = np.concatenate(
+        [eval_ds.X.astype(np.float64), state_onehot], axis=1
+    )
+
+    X_t = torch.from_numpy(X_conditioned.astype(np.float32))
+    with torch.no_grad():
+        h_eval = base_encoder.encode(X_t).cpu().numpy().astype(np.float64)
+        out = projection(torch.from_numpy(h_eval.astype(np.float32)))
+    eval_logits = out["next_state_logits"].cpu().numpy().astype(np.float64)
+
+    # Map argmax FSM states through the shared fsm_to_regime table. Argmaxes
+    # whose FSM state never appeared as a training cell hit the
+    # _UNKNOWN_REGIME sentinel already baked into the table.
+    argmax_fsm = eval_logits.argmax(axis=1).astype(np.int64)
+    predicted_regimes = fsm_to_regime[argmax_fsm]
+    return eval_logits, predicted_regimes, program_ids
+
+
+def _emit_regime_decision_trace(
+    *,
+    output_dir: Path,
+    run_id: str,
+    seed: int,
+    next_logits: np.ndarray,
+    predicted_regimes: np.ndarray,
+    program_ids: np.ndarray,
+    fsm_to_regime: np.ndarray,
+    regimes: list[RegimeNode],
+    regime_edges: list[RegimeEdge],
+    n_regimes: int,
+    trace_label: str = "train",
+) -> None:
+    """Write one ``DecisionTraceRecord`` per step to ``decision_trace.jsonl``.
+
+    σ is computed on the model's FSM-level prediction (margin, decision-tie
+    come from the FSM softmax) and on the regime-graph context (illegality
+    against the regime edge set, loop revisits within the program). The
+    control verdict operates on the regime graph: recovery searches BFS
+    over the regime legality adjacency toward goal regimes (those with
+    low failure rate).
+
+    Parameters
+    ----------
+    predicted_regimes:
+        ``(n_steps,)`` per-step regime id. Values ``>= 0`` index into the
+        regime graph; the sentinel ``_UNKNOWN_REGIME`` (``-1``) marks an
+        argmax FSM state that never appeared as a regime cell during
+        training. Unknown predictions automatically fire the illegal
+        signal and disable recovery BFS for downstream steps.
+    trace_label:
+        Free-text tag echoed into ``ablation`` so a downstream reader can
+        distinguish train-set vs. held-out-eval rows on the same grammar.
+
+    Schema 1.1 fields beyond v1.0 are left ``None``: PCG-X does not commit
+    to a node-tuple identity over multiple axes yet.
+    """
+    # Build the regime legality adjacency from observed edges. The control
+    # policy's BFS uses this to find a path from current_regime to a goal
+    # regime.
+    regime_legality = np.zeros((n_regimes, n_regimes), dtype=bool)
+    for e in regime_edges:
+        if e.count > 0:
+            regime_legality[e.src, e.dst] = True
+
+    # Goal regimes: those with non-empty support AND failure rate below
+    # threshold. Recovery will steer toward any reachable goal.
+    goal_regimes = [
+        r.regime_id
+        for r in regimes
+        if r.support > 0 and r.failure_rate < _GOAL_FAILURE_RATE_THRESHOLD
+    ]
+
+    detector = SingularityDetector()
+    policy = ControlPolicy(
+        theta_normal=_THETA_NORMAL,
+        theta_abstain=_THETA_ABSTAIN,
+        legality_matrix=regime_legality,
+        goal_states=goal_regimes if goal_regimes else None,
+    )
+
+    # Pre-compute softmax probabilities for the whole run. Numerically
+    # stable subtract-max-then-exp.
+    shifted = next_logits - next_logits.max(axis=1, keepdims=True)
+    exp_logits = np.exp(shifted)
+    probs = exp_logits / exp_logits.sum(axis=1, keepdims=True)
+
+    n_steps = int(next_logits.shape[0])
+    timestamp = dt.datetime.now(tz=dt.timezone.utc).isoformat()
+    ablation_label = f"A0_{trace_label}"
+
+    with open_decision_trace_writer(
+        output_dir / "decision_trace.jsonl"
+    ) as trace_writer:
+        for i in range(n_steps):
+            program_id = int(program_ids[i])
+            predicted_regime = int(predicted_regimes[i])
+            predicted_is_unknown = predicted_regime == _UNKNOWN_REGIME
+
+            # Top-2 FSM states from the model's actual prediction. Argpartition
+            # picks the 2 highest without sorting the rest.
+            top2_idx = np.argpartition(probs[i], -2)[-2:]
+            if probs[i, top2_idx[0]] < probs[i, top2_idx[1]]:
+                top2_idx = top2_idx[::-1]
+            top1_fsm = int(top2_idx[0])
+            top2_fsm = int(top2_idx[1])
+            top1_prob = float(probs[i, top1_fsm])
+            top2_prob = float(probs[i, top2_fsm])
+            margin = top1_prob - top2_prob
+
+            # Current regime = previous step's regime in the same program.
+            # First step of a program (or a step whose previous prediction
+            # was unknown) has no current regime — recovery cannot fire.
+            current_regime: int | None
+            if i > 0 and int(program_ids[i - 1]) == program_id:
+                prev_regime = int(predicted_regimes[i - 1])
+                current_regime = prev_regime if prev_regime != _UNKNOWN_REGIME else None
+            else:
+                current_regime = None
+
+            # Illegality:
+            #   - Unknown predicted regime is always illegal (out of graph).
+            #   - Known predicted regime: missing edge (current → predicted)
+            #     in the regime graph fires the signal.
+            #   - First step of a program (no current_regime) cannot be
+            #     illegal: there is no edge to check.
+            if predicted_is_unknown:
+                is_illegal = True
+            elif current_regime is not None:
+                is_illegal = not regime_legality[current_regime, predicted_regime]
+            else:
+                is_illegal = False
+
+            # Loop risk: did predicted_regime appear in the last K steps of
+            # this same program? Skip for unknown predictions (no regime to
+            # compare against).
+            loop_risk = 0.0
+            if i > 0 and not predicted_is_unknown:
+                window_lo = max(0, i - _LOOP_WINDOW)
+                window_program = program_ids[window_lo:i] == program_id
+                if window_program.any():
+                    recent_regimes = predicted_regimes[window_lo:i][window_program]
+                    if predicted_regime in recent_regimes:
+                        loop_risk = 1.0
+
+            decision_tie_strength = SingularityDetector.signal_from_decision_tie(
+                top1_prob - top2_prob, threshold=0.02
+            )
+
+            sigma, contribs = detector.compute(
+                margin=margin,
+                is_illegal=bool(is_illegal),
+                loop_risk=float(loop_risk),
+                decision_tie_strength=float(decision_tie_strength),
+            )
+
+            policy_result = policy.decide(
+                sigma=sigma,
+                model_prediction=predicted_regime,
+                current_state=current_regime,
+            )
+
+            top1_name = _regime_name(predicted_regime)
+            top2_regime = int(fsm_to_regime[top2_fsm])
+            top2_name = (
+                _regime_name(top2_regime) if top2_regime != _UNKNOWN_REGIME else None
+            )
+            current_name = (
+                _regime_name(current_regime) if current_regime is not None else None
+            )
+
+            mask_action = MaskAction(
+                enabled=False,  # PCG-X does not apply a hard mask to the prediction
+                current_state=current_name,
+                illegal_indices_zeroed=[],
+                pre_mask_argmax=top1_name,
+                post_mask_argmax=top1_name,
+                mask_changed_prediction=False,
+            )
+            control_action = ControlAction(
+                decision=policy_result.decision,
+                reason=policy_result.reason,
+                sigma_threshold_used=_THETA_NORMAL,
+                sigma_observed=float(sigma),
+                abstain_threshold_used=_THETA_ABSTAIN,
+            )
+
+            sigma_signals = {
+                "margin": float(contribs.margin_signal),
+                "decision_tie": float(contribs.decision_tie_signal),
+                "illegal": float(contribs.illegal_signal),
+                "loop": float(contribs.loop_signal),
+                "stabilizer": float(contribs.stabilizer_signal),
+                "catastrophe_bias": float(contribs.catastrophe_bias),
+            }
+
+            record = DecisionTraceRecord(
+                run_id=run_id,
+                experiment="E28",
+                ablation=ablation_label,
+                seed=seed,
+                step=i,
+                sample_id=f"prog{program_id}_step{i}",
+                confidence=top1_prob,
+                top1_state=top1_name,
+                top2_state=top2_name,
+                top1_prob=top1_prob,
+                top2_prob=top2_prob,
+                margin=float(margin),
+                mask=mask_action,
+                sigma_total=float(sigma),
+                sigma_signals=sigma_signals,
+                control=control_action,
+                timestamp=timestamp,
+            )
+            trace_writer.append(record)

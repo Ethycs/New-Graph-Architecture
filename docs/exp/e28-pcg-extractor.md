@@ -72,6 +72,6 @@ Reproduce via `pixi run -e dev python scripts/phase23e_sigma_control_stats.py`. 
 
 ## Links
 
-- **See also:** [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [Control Policy](../arch/substrate/control-policy.md), [Predictive Projection](../arch/predictive-projection.md), [Bisimulation Quotient](../arch/graph/bisimulation-quotient.md), [Decision Trace JSONL](../drivers/decision-trace-jsonl.md).
+- **See also:** [Singularity Detector σ(x)](../arch/singularity/singularity-detector.md), [Control Policy](../arch/substrate/control-policy.md), [Predictive Projection](../arch/graph/predictive-projection.md), [Bisimulation Quotient](../arch/graph/bisimulation-quotient.md), [Decision Trace JSONL](../drivers/decision-trace-jsonl.md).
 - **Driven by:** [E26 Trained-Encoder Extraction](./e26-extraction-trained-encoder.md) (the Wave-C substrate that E28 reuses), [E27 Partition Probe](./e27-extraction-partition-probe.md) (the probe-head pattern), and `docs/proposals/graph-extraction.md` (the reframed deliverable).
 - **Drives:** Phase 23c interventions (still open), Phase 23 pretrained-substrate test (GPT-2 small, open), σ-threshold recalibration on the regime graph (open).

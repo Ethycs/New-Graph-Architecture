@@ -1,9 +1,27 @@
 # Labelled Hypergraph with Residual: Owning the Semantic Gap in the Data Structure
 
-**Status:** proposed
+**Status:** accepted-2026-05-14 — Phase 26 atoms + schema shipped (uncommitted on `main` at audit time; sources, atom docs, and acceptance-bar tests all present)
 **Phase target:** Phase 26 (atoms + schema), prerequisite to Phase 27 (geometric reconstruction) and Phase 28 (SAE plug-in)
 **Date posted:** 2026-05-14
 **Author:** TPN research team
+
+## Outcome — 2026-05-14
+
+Accepted and built. The six acceptance bars (A1–A6) are exercised by:
+
+- [tests/unit/test_labelled_hypergraph.py](../../tests/unit/test_labelled_hypergraph.py) (A1 round-trip, A2 projection, A6 hypergraph construction)
+- [tests/unit/test_kl_regime_signature.py](../../tests/unit/test_kl_regime_signature.py) (A4 KL signature)
+- [tests/unit/test_sae_adapter.py](../../tests/unit/test_sae_adapter.py) (A5 named/residual split)
+- [tests/unit/test_decision_trace_jsonl_v12.py](../../tests/unit/test_decision_trace_jsonl_v12.py) (A3 schema compat)
+
+Atoms shipped:
+
+- [src/nga/arch/labelled_hypergraph.py](../../src/nga/arch/labelled_hypergraph.py) + [docs/arch/graph/labelled-hypergraph.md](../arch/graph/labelled-hypergraph.md)
+- [src/nga/arch/kl_regime_signature.py](../../src/nga/arch/kl_regime_signature.py) + [docs/arch/graph/kl-regime-signature.md](../arch/graph/kl-regime-signature.md)
+- [src/nga/arch/sae_adapter.py](../../src/nga/arch/sae_adapter.py) + [docs/arch/substrate/sae-adapter.md](../arch/substrate/sae-adapter.md)
+- Schema bump to v1.2 in [src/nga/drivers/decision_trace_jsonl.py](../../src/nga/drivers/decision_trace_jsonl.py) (`DECISION_TRACE_SCHEMA_VERSION = "1.2"`) with the four new fields (`regime_named_label`, `regime_residual_features`, `regime_kl_signature_hash`, `feature_delta_at_transition`).
+
+Unblocks Phase 27 (marching simplices + $d_{\text{eff}}$) and Phase 28 (real SAE plug-in).
 
 ## Abstract
 

@@ -72,8 +72,10 @@ def _round_trip(record: DecisionTraceRecord) -> DecisionTraceRecord:
 
 
 def test_v11_schema_version_string() -> None:
-    """The driver advertises schema 1.1."""
-    assert DECISION_TRACE_SCHEMA_VERSION == "1.1"
+    """The driver advertises at least schema 1.1 (additive fields may bump minor)."""
+    major, minor = DECISION_TRACE_SCHEMA_VERSION.split(".")
+    assert int(major) == 1
+    assert int(minor) >= 1
 
 
 def test_v10_record_still_loads() -> None:

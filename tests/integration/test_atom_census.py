@@ -121,9 +121,18 @@ def test_every_implemented_atom_has_a_caller():
 
     # Torch atoms are now consumed by E12 (substrate-independence runner)
     # and torch_energy_trainer by E14 (torch-native end-to-end training);
-    # the sklearn-substrate siblings remain consumed by E0..E11. No atoms
-    # are currently un-consumed.
-    KNOWN_UNCONSUMED: set[str] = set()
+    # the sklearn-substrate siblings remain consumed by E0..E11.
+    #
+    # Phase 26 atoms (labelled hypergraph + KL signature + SAE adapter) are
+    # scaffolding shipped per `docs/proposals/labelled-hypergraph.md`. The
+    # proposal explicitly defers wiring into PCG-X runners (E28/E30) to a
+    # follow-up; until then these atoms exist + are unit-tested but have no
+    # runner caller. Remove from this list when the integration proposal lands.
+    KNOWN_UNCONSUMED: set[str] = {
+        "nga.arch.labelled_hypergraph",
+        "nga.arch.kl_regime_signature",
+        "nga.arch.sae_adapter",
+    }
 
     unused = sorted(set(all_modules) - consumed - KNOWN_UNCONSUMED)
     # A handful of modules may legitimately have no caller during the
