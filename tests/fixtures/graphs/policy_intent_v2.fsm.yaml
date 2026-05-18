@@ -1,0 +1,122 @@
+# Policy-Intent v2 FSM (4-state register switch).
+#
+# Source: docs/proposals/policy-intent-fsm-extraction.md (Phase 28b),
+# transcribed from langgraph_servants docs/policy-intent-v2.md (v2 forward
+# proposal).
+#
+# States (4):
+#   UNESTABLISHED  -- polite, restrained; await direction before volunteering
+#                     commentary. Renderer omits all anchor blocks.
+#   GRANTED        -- free voice; observations and elaboration welcome.
+#   WITHHELD       -- clinical, factual responses only; no commentary.
+#                     Renderer inserts "## Speech permission revoked" anchor.
+#   CONDITIONAL    -- granted under stated condition; honor the constraint
+#                     in register. Renderer inserts "## Conditional grant" anchor.
+#
+# Input alphabet (5 classifier-output classes):
+#   GRANT        -- grant_threshold met, no condition.
+#   REVOKE       -- revoke_threshold met.
+#   CONDITION    -- conditional grant ("you may speak about X but not Y").
+#   REQUEST      -- servant asks for permission. Does NOT flip state; emits
+#                   a PolicyModification with new_state == current_state so
+#                   the renderer can surface request_hint next turn.
+#   ACKNOWLEDGE  -- actor acknowledges a prior grant/revoke. State unchanged;
+#                   audit-only.
+#
+# Authority gate (4 modes -- checked at validator Layer 3):
+#   MASTER_OF_RELATIONSHIP, PEER_MUTUAL, SELF_ONLY, SYSTEM.
+# REJECT path emits a policy_modification_rejected event AND leaves state
+# unchanged (v2 explicit rejection, vs. v1 silent no-op).
+#
+# Transition table (from x input -> to):
+#   UNESTABLISHED + GRANT     -> GRANTED
+#   UNESTABLISHED + REVOKE    -> WITHHELD
+#   UNESTABLISHED + CONDITION -> CONDITIONAL
+#   UNESTABLISHED + REQUEST   -> UNESTABLISHED  (no flip)
+#   UNESTABLISHED + ACKNOWLEDGE -> UNESTABLISHED (no flip)
+#   GRANTED       + GRANT     -> GRANTED        (idem)
+#   GRANTED       + REVOKE    -> WITHHELD
+#   GRANTED       + CONDITION -> CONDITIONAL
+#   GRANTED       + REQUEST   -> GRANTED        (no flip)
+#   GRANTED       + ACKNOWLEDGE -> GRANTED       (no flip)
+#   WITHHELD      + GRANT     -> GRANTED
+#   WITHHELD      + REVOKE    -> WITHHELD       (idem)
+#   WITHHELD      + CONDITION -> CONDITIONAL
+#   WITHHELD      + REQUEST   -> WITHHELD       (no flip)
+#   WITHHELD      + ACKNOWLEDGE -> WITHHELD      (no flip)
+#   CONDITIONAL   + GRANT     -> GRANTED
+#   CONDITIONAL   + REVOKE    -> WITHHELD
+#   CONDITIONAL   + CONDITION -> CONDITIONAL    (re-set)
+#   CONDITIONAL   + REQUEST   -> CONDITIONAL    (no flip)
+#   CONDITIONAL   + ACKNOWLEDGE -> CONDITIONAL   (no flip)
+#
+# Vertex count: 4
+# Edge count:   20  (4 states x 5 input tokens)
+
+schema_version: '1.0'
+name: policy_intent_v2
+vertex_count: 4
+edge_count: 20
+vertices:
+- id: UNESTABLISHED
+  label: UNESTABLISHED
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: GRANTED
+  label: GRANTED
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: WITHHELD
+  label: WITHHELD
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: CONDITIONAL
+  label: CONDITIONAL
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+edges:
+# UNESTABLISHED row.
+- {source: UNESTABLISHED, target: GRANTED, label: GRANT, weight: 1.0}
+- {source: UNESTABLISHED, target: WITHHELD, label: REVOKE, weight: 1.0}
+- {source: UNESTABLISHED, target: CONDITIONAL, label: CONDITION, weight: 1.0}
+- {source: UNESTABLISHED, target: UNESTABLISHED, label: REQUEST, weight: 1.0}
+- {source: UNESTABLISHED, target: UNESTABLISHED, label: ACKNOWLEDGE, weight: 1.0}
+# GRANTED row.
+- {source: GRANTED, target: GRANTED, label: GRANT, weight: 1.0}
+- {source: GRANTED, target: WITHHELD, label: REVOKE, weight: 1.0}
+- {source: GRANTED, target: CONDITIONAL, label: CONDITION, weight: 1.0}
+- {source: GRANTED, target: GRANTED, label: REQUEST, weight: 1.0}
+- {source: GRANTED, target: GRANTED, label: ACKNOWLEDGE, weight: 1.0}
+# WITHHELD row.
+- {source: WITHHELD, target: GRANTED, label: GRANT, weight: 1.0}
+- {source: WITHHELD, target: WITHHELD, label: REVOKE, weight: 1.0}
+- {source: WITHHELD, target: CONDITIONAL, label: CONDITION, weight: 1.0}
+- {source: WITHHELD, target: WITHHELD, label: REQUEST, weight: 1.0}
+- {source: WITHHELD, target: WITHHELD, label: ACKNOWLEDGE, weight: 1.0}
+# CONDITIONAL row.
+- {source: CONDITIONAL, target: GRANTED, label: GRANT, weight: 1.0}
+- {source: CONDITIONAL, target: WITHHELD, label: REVOKE, weight: 1.0}
+- {source: CONDITIONAL, target: CONDITIONAL, label: CONDITION, weight: 1.0}
+- {source: CONDITIONAL, target: CONDITIONAL, label: REQUEST, weight: 1.0}
+- {source: CONDITIONAL, target: CONDITIONAL, label: ACKNOWLEDGE, weight: 1.0}
+coordinates:
+  space: euclidean
+  dimension: 8
+  node_embeddings:
+    UNESTABLISHED: [0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    GRANTED:       [0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00]
+    WITHHELD:      [0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00, 0.00]
+    CONDITIONAL:   [0.00, 0.00, 0.00, 0.10, 0.00, 0.00, 0.00, 0.00]
+validation:
+  acyclic: false
+  start_nodes: [UNESTABLISHED]
+  end_nodes: []
+  invariant_edges: []

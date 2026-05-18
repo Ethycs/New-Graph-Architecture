@@ -84,6 +84,7 @@ except ImportError:  # pragma: no cover - exercised only on torch-less envs
     torch = None  # type: ignore[assignment]
 from nga.exp.dataset_json import generate_json_dataset
 from nga.exp.dataset_listops import generate_listops_dataset
+from nga.exp.dataset_policy_intent import generate_policy_intent_dataset
 from nga.exp.dataset_python_big import generate_python_big_dataset
 from nga.exp.dataset_python_control import generate_python_control_dataset
 from nga.exp.dataset_python_expr import generate_python_expr_dataset
@@ -155,6 +156,38 @@ _GRAMMAR_DISPATCH = {
         ),
         "sequence_id_attr": "program_id",
         "fsm_yaml_path": "tests/fixtures/graphs/python_control.fsm.yaml",
+        "default_n": 80,
+    },
+    "policy_intent_v1": {
+        "loader": lambda fsm, n, seed: generate_policy_intent_dataset(
+            fsm=fsm, n_policies=n, seed=seed, version="v1"
+        ),
+        "sequence_id_attr": "sequence_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/policy_intent_v1.fsm.yaml",
+        "default_n": 80,
+    },
+    "policy_intent_v2": {
+        "loader": lambda fsm, n, seed: generate_policy_intent_dataset(
+            fsm=fsm, n_policies=n, seed=seed, version="v2"
+        ),
+        "sequence_id_attr": "sequence_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/policy_intent_v2.fsm.yaml",
+        "default_n": 80,
+    },
+    "policy_intent_v1_templated": {
+        "loader": lambda fsm, n, seed: generate_policy_intent_dataset(
+            fsm=fsm, n_policies=n, seed=seed, version="v1", rendering="templated"
+        ),
+        "sequence_id_attr": "sequence_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/policy_intent_v1.fsm.yaml",
+        "default_n": 80,
+    },
+    "policy_intent_v2_templated": {
+        "loader": lambda fsm, n, seed: generate_policy_intent_dataset(
+            fsm=fsm, n_policies=n, seed=seed, version="v2", rendering="templated"
+        ),
+        "sequence_id_attr": "sequence_id",
+        "fsm_yaml_path": "tests/fixtures/graphs/policy_intent_v2.fsm.yaml",
         "default_n": 80,
     },
 }

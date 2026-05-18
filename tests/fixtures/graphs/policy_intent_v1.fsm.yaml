@@ -1,0 +1,64 @@
+# Policy-Intent v1 FSM (binary speech_permission gate).
+#
+# Source: docs/proposals/policy-intent-fsm-extraction.md (Phase 28b),
+# transcribed from langgraph_servants docs/policy-intent.md (v1 spec).
+#
+# States (2):
+#   ALLOWED   -- speech_permission == True or key absent (default).
+#                Renderer omits the "## Speech permission revoked" anchor.
+#   WITHHELD  -- speech_permission == False (containment beats only).
+#                Renderer inserts "## Speech permission revoked" anchor.
+#
+# Input alphabet (3 tokens, classifier-output equivalent classes):
+#   GRANT_EVENT   -- speech_grant >= grant_threshold (0.5)
+#   REVOKE_EVENT  -- speech_revoke >= revoke_threshold (0.5)
+#   NULL          -- both magnitudes below threshold (no-op)
+#
+# Authority gate: ACCEPT iff evidence_span carries a user-explicit marker.
+# REJECT path emits no PolicyModification (v1 silent no-op).
+#
+# Per the v1 reducer dedup rule, idempotent self-loops do NOT emit a
+# PolicyModification (state unchanged -> no audit entry). They are still
+# valid transitions and must appear in this FSM so the regime-extraction
+# pipeline can identify them as legal.
+#
+# Vertex count: 2
+# Edge count:   6  (2 states x 3 input tokens, all self-loops or flips)
+
+schema_version: '1.0'
+name: policy_intent_v1
+vertex_count: 2
+edge_count: 6
+vertices:
+- id: ALLOWED
+  label: ALLOWED
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+- id: WITHHELD
+  label: WITHHELD
+  layer: 0
+  w_v: 1.0
+  g_v: 0.1
+  m_v: null
+edges:
+# ALLOWED row.
+- {source: ALLOWED, target: ALLOWED, label: GRANT_EVENT, weight: 1.0}  # idempotent
+- {source: ALLOWED, target: WITHHELD, label: REVOKE_EVENT, weight: 1.0}  # flip
+- {source: ALLOWED, target: ALLOWED, label: "NULL", weight: 1.0}  # no-op
+# WITHHELD row.
+- {source: WITHHELD, target: ALLOWED, label: GRANT_EVENT, weight: 1.0}  # flip
+- {source: WITHHELD, target: WITHHELD, label: REVOKE_EVENT, weight: 1.0}  # idempotent
+- {source: WITHHELD, target: WITHHELD, label: "NULL", weight: 1.0}  # no-op
+coordinates:
+  space: euclidean
+  dimension: 4
+  node_embeddings:
+    ALLOWED:  [0.10, 0.00, 0.00, 0.00]
+    WITHHELD: [0.00, 0.10, 0.00, 0.00]
+validation:
+  acyclic: false
+  start_nodes: [ALLOWED]
+  end_nodes: []
+  invariant_edges: []
