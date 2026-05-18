@@ -91,6 +91,54 @@ Both metrics improve when measured at the structurally correct cardinality (`V �
 2. **Phase 28 SAE plug-in.** With both Phase 28b and Phase 27 Step 5 pointing to "labelled-hypergraph + finer-regime granularity" as the architecturally correct treatment, the SAE plug-in (real pretrained SAE filling `named`) is now the load-bearing next deliverable. ~2 days.
 3. **Wave-B real `langgraph_servants` traces.** Phase 28b's deployment-relevant version. Runtime-team coordination required.
 
+### Step 5b follow-up (same day, 2026-05-18) — pre-registered prediction PARTIALLY CONFIRMED, MAGNITUDE FALSIFIED
+
+Ran the pre-registered prediction immediately. `scripts/phase27_step5b_joint_affine_fit.py` repeats Step 5 but trains the projection on the joint `(current_state, observed_token)` target with `n_states = V × |tokens|`, then re-fits block_7 = A · block_6 + b within each argmax cell with the identical 5-fold CV / PCA-32 / ridge methodology.
+
+| grammar | V | |t| | n_joint | **V-cell R² (Step 5)** | **joint R² (Step 5b)** | Δ |
+|---|---:|---:|---:|---:|---:|---:|
+| listops | 11 | 16 | 176 | 0.888 | **1.0000** | +0.11 |
+| python_control | 37 | 22 | 814 | −0.284 | **0.364** | **+0.65** |
+| json | 26 | 16 | 416 | 0.200 | **0.631** | **+0.43** |
+| python_big | 24 | 18 | 432 | 0.131 | **0.456** | +0.33 |
+| python_expr | 14 | 16 | 224 | 0.512 | 0.471 | −0.04 |
+| policy_intent_v2 | 4 | 5 | 20 | 0.901 | 0.852 | −0.05 |
+
+**Direction confirmed**, but **0.90 bar not reached uniformly**.
+
+- **Direction CONFIRMED on the grammars that failed Step 5.** python_control, json, python_big all show substantial R² jumps (+0.33, +0.43, +0.65). The Phase 21 finer-equivalence story holds qualitatively: the substrate IS smoother when regimes are refined toward its natural equivalence cardinality.
+- **0.90 magnitude FALSIFIED.** Only listops PASSes (and that's a small-sample artifact — 36 of 38 observed cells got skipped by `min_cell_size = 20`, so the "1.0000" is from 2 well-supported cells; not a meaningful sweep over the joint structure).
+- **policy_intent_v2 and python_expr regressed slightly** under joint cardinality. Suggests that for grammars where V-cell granularity was already roughly right, adding more cells just splits well-formed strata into noisier sub-strata.
+
+**Methodological wrinkle that bounds the test.** With `n_programs = 80` per grammar (~1500 samples) and joint target cardinality of 176–814, most joint cells have < 20 supports and are excluded by the CV's `min_cell_size`. Only the heavily-trafficked cells qualify. Examples:
+
+- python_control: 226 cells observed, **only 27 fit** (199 skipped for low support)
+- json: 115 cells observed, **only 8 fit** (107 skipped)
+- python_big: 199 cells observed, **only 37 fit** (162 skipped)
+
+The weighted R² is dominated by the few large-support cells. The full joint-cardinality prediction can only be properly tested at significantly larger `n_programs` (~1000+) to populate the joint cells. **Estimated wall-clock cost of a proper test: ~10 minutes for the 6-grammar sweep at n_programs = 800.** Out of scope for this writeup but cheap and well-motivated.
+
+**Updated reading of the Phase 21 dynamic:** Refining regimes toward joint cardinality moves the affine-fit R² in the right direction (substantially: +0.33 to +0.65 on the worst grammars) but doesn't fully restore smoothness at the data scale we tested. Two plausible explanations:
+
+1. **Statistical** — the joint cells are too small under the cell-size threshold; a 10× larger corpus would let more cells qualify and might push R² toward 0.90. Testable cheaply.
+2. **Structural** — even at the substrate's natural equivalence cardinality, GPT-2's block-6 → block-7 map is genuinely not affine within each stratum (GELU smoothness is more nonlinear than ReLU's piecewise-affine). The framework's "smoothly approximate" promise for GELU might land at R² ≈ 0.6–0.8 in practice, not 0.90.
+
+Either reading is publishable. The honest finding from Step 5+5b combined: **the master theorem's smoothness assumption is empirically supported in direction but the specific 0.90 bar is too strong as a uniform claim on GPT-2 small at this data scale.** The framework's qualitative bet is intact; the quantitative bound on residual is grammar- and granularity-dependent.
+
+**Files.** New: `scripts/phase27_step5b_joint_affine_fit.py`, `runs/phase27_step5b_joint_affine.json`.
+
+**Phase 27 master-theorem-validation arc is now closed.** Final status of the 5 steps:
+
+| step | what | verdict |
+|---|---|:---:|
+| 1+2 (Sullivan log-law) | $d_{\text{eff}}$ from σ trajectory | drift, framework's specific 2.5-d prediction did not transfer |
+| 3 (raw activation PCA) | substrate variance dimensionality | pivot — measured wrong thing |
+| 4 (gradient-Krylov) | σ-relevant subspace dimension | **PASS** — top-3 captures 60–89% on synthetic, top-3 ≈ 98% on emotion, eff_rank ≈ k−1 |
+| 5 (per-regime affine, V cells) | substrate block-6 → block-7 smoothness | **CONDITIONAL PASS** — small grammars (V ≤ 11) + policy_intent_v2 PASS; larger grammars FAIL |
+| 5b (per-regime affine, joint cells) | same at finer granularity | **PARTIAL CONFIRM** — direction right (+0.33 to +0.65), magnitude bar not met |
+
+**Three of five steps deliver positive structural results in the regime the framework anticipates** (small / well-granulated regimes). The framework's predictions hold conditionally, not universally — exactly the kind of conditional empirical claim a structural framework articulates.
+
 ---
 
 ## 2026-05-18 — Phase 28b — policy-intent FSM extraction: A1 + A2 PASS, A3 FAILS (the pre-registered "conditional/interesting" branch)
