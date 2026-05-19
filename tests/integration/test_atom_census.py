@@ -128,10 +128,17 @@ def test_every_implemented_atom_has_a_caller():
     # proposal explicitly defers wiring into PCG-X runners (E28/E30) to a
     # follow-up; until then these atoms exist + are unit-tested but have no
     # runner caller. Remove from this list when the integration proposal lands.
+    #
+    # Phase 28 atom (sparse_autoencoder, the SAE training module) is the SAE
+    # plug-in deliverable. The trainer is invoked from
+    # `scripts/phase28_train_sae.py`; the saved .npz checkpoint is consumed
+    # by `PretrainedSAEAdapter.from_checkpoint`. No src/nga/exp runner
+    # imports the SAE trainer directly; scripts/ is the consumer.
     KNOWN_UNCONSUMED: set[str] = {
         "nga.arch.labelled_hypergraph",
         "nga.arch.kl_regime_signature",
         "nga.arch.sae_adapter",
+        "nga.arch.sparse_autoencoder",
     }
 
     unused = sorted(set(all_modules) - consumed - KNOWN_UNCONSUMED)
