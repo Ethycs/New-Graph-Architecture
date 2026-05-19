@@ -26,6 +26,133 @@ the top of this file.
 
 ---
 
+## 2026-05-18 — Phase 28 v2 — WikiText-trained SAE: broader feature coverage, lower fraction, different audit story
+
+**Why this exists.** Phase 28 v1 trained a small SAE on 100 emotion sentences. The 1.27% labelling rate and ~10% per-regime interpretability fraction were honestly flagged as artifacts of the toy training corpus. The Phase 28 writeup proposed *swap in a curated SAE without changing the rest of the pipeline*. With Anthropic-released SAEs unreachable (network probes denied), the next-best demonstration is **train v2 on a real natural-language corpus (WikiText-2)** using the same training infrastructure, and compare audit performance head-to-head on the emotion regimes.
+
+### What changed (v1 → v2)
+
+| | v1 | v2 |
+|---|---|---|
+| Training corpus | 100 emotion sentences (hand-constructed) | 4000 WikiText-2 passages, 24,000 random positions |
+| Training scale | 100 samples × 200 epochs | 24,000 samples × 100 epochs |
+| SAE size | 3072 features (4× expansion) | 4096 features (5.3× expansion) |
+| Training device | CPU | GPU (after device-aware patch to `train_sparse_autoencoder`) |
+| Wall-clock | 41 s | ~150 s (84 s harvest + ~60 s GPU training) |
+| Final reconstruction loss | 0.046 (overfits 100 samples) | 0.195 (broad-distribution fit) |
+| Final sparsity (active features per sample) | 82 of 3072 (2.7%) | 561 of 4096 (13.7%) on training distribution |
+
+`scripts/phase28_v2_train_sae_wikitext.py`, `scripts/phase28_v2_label_features.py`, `scripts/phase28_v2_audit_compare.py`. The labeller is identical to v1's but evaluates the WikiText-trained SAE on the *same* 100 emotion sentences — a deliberate fair comparison.
+
+### Labelling result (emotion-corpus class purity ≥ 0.65 over top-5 activating samples)
+
+| SAE | n_features | n_train_activations | features labelled | labelling rate |
+|---|---:|---:|---:|---:|
+| v1 | 3,072 | 100 | 39 | 1.27% |
+| **v2** | **4,096** | **24,000** | **67** | **1.64%** |
+
+v2 captures **72% more class-discriminating features** than v1 despite never seeing the emotion corpus during training. Sample top labelled features in v2:
+
+- `feature 520 → surprise:f520` — purity 1.00, fires on **all 100** samples; top activations include "What an unbelievable coincidence, what are the odds of that" and "I am stunned, this is the last thing I expected to hear today".
+- `feature 1032 → fear:f1032` — purity 1.00, fires on all 100; top activations on "I am scared to death, please tell me everything will be okay" and "He held his breath, listening for footsteps in the hallway".
+- `feature 2492 → joy:f2492` — purity 1.00, fires on 61 samples; top activations on "What a delightful afternoon..." and "I am overjoyed that we finally got the offer".
+
+Features that fire on every sample (520, 1032) are interesting — they're WikiText-trained but happen to discriminate emotion classes by relative magnitude. This is exactly the "broad-coverage SAE meets task-specific labelling" payoff.
+
+### Audit result on emotion regimes (regime_activation_fraction_threshold = 0.20, same as v1)
+
+| regime | v1 named | v1 resid | v1 frac | v2 named | v2 resid | v2 frac | Δ frac |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| R0_joy | 23 | 192 | 0.107 | **41** | 654 | 0.059 | −0.048 |
+| R1_sadness | 21 | 194 | 0.098 | **37** | 643 | 0.054 | −0.043 |
+| R2_anger | 18 | 203 | 0.081 | **41** | 649 | 0.059 | −0.022 |
+| R3_fear | 17 | 193 | 0.081 | **38** | 647 | 0.055 | −0.025 |
+| R4_surprise | 22 | 200 | 0.099 | **40** | 642 | 0.059 | −0.040 |
+| **aggregate** | **101** | **982** | **0.093** | **197** | **3,235** | **0.057** | **−0.036** |
+
+**v2 has nearly 2× more named features per regime (101 → 197, +95%), but the fraction went DOWN (0.093 → 0.057) because residual scaled by 3.3× (982 → 3,235).** Both numbers are real and the interpretation matters.
+
+### The threshold sweep — which SAE is "better" depends on the question
+
+The regime-activation threshold above (0.20) accepts features that fire on ≥20% of regime samples. Sweeping the threshold reveals the qualitative difference between v1 and v2:
+
+| threshold | v1 named | v1 frac | v2 named | v2 frac | named ratio v2/v1 |
+|---:|---:|---:|---:|---:|---:|
+| 0.20 | 101 | 0.093 | 197 | 0.057 | 1.95× |
+| 0.30 | 57 | 0.094 | 182 | 0.058 | 3.19× |
+| 0.40 | 34 | 0.119 | 165 | 0.058 | 4.85× |
+| 0.50 | 21 | 0.172 | 146 | 0.056 | 6.95× |
+| 0.60 | 9 | 0.209 | 129 | 0.056 | **14.3×** |
+| 0.70 | 4 | 0.235 | 109 | 0.054 | **27.3×** |
+| 0.80 | 3 | 0.333 | 92 | 0.054 | **30.7×** |
+
+**v1's fraction climbs sharply with threshold (0.09 → 0.33).** v1's named features are sticky — they fire reliably on most samples in their regime. v1's residual features are noisy — they fire sporadically and are filtered out at strict thresholds.
+
+**v2's fraction is flat at ~0.057.** Both named AND residual features in v2 fire at similar fractions of regime samples — v2 features are *broadly distributed*, not sparse-and-discriminating.
+
+The architectural meaning is sharp: **v2 residual is not noise; it is real WikiText-learned features that fire because the emotion sentences contain WikiText-distribution structure** (first-person, past-tense, syntactic patterns, etc.). They're unlabelled relative to *our 5-class emotion vocabulary*, not unlabelled in any deeper sense — given a broader labelling effort (e.g. POS-tagging, sentiment polarity, syntactic role), the same v2 features would jump from residual to named.
+
+### What's actually better in v2 vs v1
+
+**v2 wins on**:
+- Absolute labelled-feature count per regime (37–41 vs 17–23, ~2× across regimes).
+- Coverage breadth — at strict thresholds (0.70+), v2 has 92–109 named features per regime that fire reliably; v1 has 3–4.
+- Training-distribution validity — fit on 24,000 real-text positions, not 100 hand-crafted sentences.
+- Substrate-agnostic deployability — drop-in replacement for any analysis where the SAE-feature dictionary matters more than the labelling fraction.
+
+**v1 wins on**:
+- Interpretability fraction at strict thresholds (0.33 at threshold 0.80 vs 0.054 for v2).
+- Compactness — 3072 features vs 4096.
+- Task-alignment to the labelling effort — v1 was trained on the same corpus it was labelled on, so its surviving features are by construction the emotion-discriminating ones.
+
+### Honest reading: the interpretability fraction is a labelling-effort artefact, not an SAE-quality metric
+
+The "interpretability fraction" depends on **two things**: how broad the SAE's feature dictionary is (v2 wider), and how complete the labelling effort was (both narrow, ~1.5%). When the SAE is broader than the labelling vocabulary, the fraction looks worse even though absolute named coverage is better. For deployment-grade audit, the right metric depends on the question:
+
+- *"How much of this regime can I explain?"* → fraction (v1 wins at strict threshold).
+- *"How many distinct meaningful features fire in this regime?"* → absolute named count (v2 wins by 2–30×).
+- *"Is the audit signal usable on novel inputs?"* → SAE training-distribution validity (v2 wins; it generalizes; v1 overfits).
+
+For the policy-intent FSM audit (Wave-B of Phase 28b) on real `langgraph_servants` dialogue, **v2-style is the right choice** — broad-corpus SAE + task-specific labels → broader named coverage on the deployment-relevant distribution.
+
+### What this validates and what it doesn't
+
+- ✓ **The SAE plug-in is genuinely swappable.** Same `PretrainedSAEAdapter` interface, completely different SAE (different corpus, scale, expansion), zero code changes downstream. The Phase 26 design abstraction works.
+- ✓ **Broader-corpus SAEs deliver more named coverage absolutely.** v2's 67 labelled features (vs v1's 39) and 197 named features per regime (vs v1's 101) demonstrate the broader feature dictionary's value.
+- ✓ **The interpretability fraction has a known confound** (labelling completeness vs feature-dictionary breadth) and the threshold sweep cleanly exposes it.
+- ✗ **No comparison to a curated, hand-labelled real SAE** (Anthropic's released GPT-2 SAEs). Network was denied so we couldn't pull one; the v2 result is an in-process WikiText-trained SAE with our own auto-labelling. A real curated SAE with thousands of labelled features would push the fraction much higher.
+- ✗ **The WikiText distribution does not match emotion-classification's distribution closely.** A domain-aligned SAE (trained on Reddit / emotion corpora) would likely have higher class-aligned feature density.
+
+### Files
+
+New:
+- `scripts/phase28_v2_train_sae_wikitext.py`
+- `scripts/phase28_v2_label_features.py`
+- `scripts/phase28_v2_audit_compare.py`
+- `runs/phase28_v2_sae/{wikitext_block6.npz, wikitext_harvest.npz, labels.json, feature_descriptions.json, training_log.json}`
+- `runs/phase28_v2_audit/{labelled_hypergraph.json, per_regime_audit.json}`
+
+Modified:
+- `src/nga/arch/sparse_autoencoder.py` (+device-aware trainer; routes `h_all` and batch indices to the SAE's device so GPU training works)
+- `pyproject.toml` + `pixi.lock` (added pyarrow for WikiText parquet reading)
+
+Suite: existing 387 tests pass with the device-aware trainer patch.
+
+### Phase 28 / 28b roadmap status
+
+| deliverable | v1 | v2 |
+|---|:---:|:---:|
+| `PretrainedSAEAdapter` | shipped | shipped (unchanged) |
+| Trained SAE on real activations | 100 emotion sentences | 24,000 WikiText positions |
+| Auto-labelling on emotion corpus | 39 features | 67 features (+72%) |
+| End-to-end labelled hypergraph build | shipped | shipped |
+| Per-regime audit numbers reported | 101 named / 982 residual / frac 0.093 | 197 named / 3,235 residual / frac 0.057 |
+| Threshold-sweep diagnostic | n/a | shipped — shows v1 wins on fraction at high threshold, v2 wins on absolute count |
+
+**The structural deliverable — "swap in a different SAE without changing the pipeline" — works.** v1 → v2 was a script + checkpoint swap, no atom changes. The audit numbers shift predictably with SAE properties (broader → more named & more residual; narrower task-aligned → fewer total but higher fraction).
+
+---
+
 ## 2026-05-18 — Phase 28 — SAE plug-in: audit-by-construction loop closes end-to-end with a real SAE
 
 **Why this exists.** Phase 28b accepted the labelled-hypergraph reframe (A1+A2+A3 all PASS via joint-cardinality), and Phase 27 Step 5+5b confirmed the same Phase 21 dynamic on the affine-fit metric. Both pointed at the Phase 26 labelled hypergraph as the architecturally correct deployment substrate — *but* the `named` field was empty in every prior run because the SAE Protocol in Phase 26 shipped with only `IdentitySAEAdapter` / `MockLabelledSAEAdapter` defaults. The deferred `PretrainedSAEAdapter` had not been built. Phase 28's deliverable is: build the real SAE plug-in, train an SAE on real activations, integrate it into the hypergraph build, and verify the audit-by-construction loop closes end-to-end.

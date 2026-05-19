@@ -158,7 +158,10 @@ def train_sparse_autoencoder(
     if torch is None:  # pragma: no cover
         raise ImportError("torch is required")
     opt = torch.optim.Adam(sae.parameters(), lr=lr)
-    h_all = torch.from_numpy(activations.astype(np.float32))
+    # Co-locate the data with the model's parameters: if the SAE has been
+    # moved to CUDA, keep activations on CUDA too.
+    device = next(sae.parameters()).device
+    h_all = torch.from_numpy(activations.astype(np.float32)).to(device)
     n = h_all.shape[0]
     rng = np.random.default_rng(int(seed))
     stats: dict[str, float] = {}
@@ -168,7 +171,7 @@ def train_sparse_autoencoder(
         epoch_n_batches = 0
         for start in range(0, n, batch_size):
             stop = min(n, start + batch_size)
-            idx = torch.from_numpy(perm[start:stop].astype(np.int64))
+            idx = torch.from_numpy(perm[start:stop].astype(np.int64)).to(device)
             batch = h_all[idx]
             total, comp = sae.loss(batch)
             opt.zero_grad()
